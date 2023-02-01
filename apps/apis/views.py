@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.permissions import (
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
+    AllowAny,
 )
 
 from rest_framework.response import Response
@@ -99,3 +100,11 @@ class UploadAttachmentView(APIView):
         if serializer.is_valid(raise_exception=True):
             serializer.save(owner=self.request.user)
         return Response(serializer.data, status=201)
+
+
+class TestView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        add.delay(1, 2)
+        return Response('ok', status=200)

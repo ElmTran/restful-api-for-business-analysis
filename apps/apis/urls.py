@@ -6,6 +6,7 @@ from .views import (
     ResultView,
     AttachmentView,
     UploadAttachmentView,
+    TestView,
 )
 
 app_name = 'apis'
@@ -19,5 +20,6 @@ urlpatterns = [
         "<int:pk>/attachment/",
         AttachmentView.as_view(), name="attachment-detail"
     ),
+    path('test', TestView.as_view(), name='test'),
     path("upload/", UploadAttachmentView.as_view(), name="upload-attachment"),
 ]

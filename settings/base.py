@@ -11,6 +11,10 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 from pathlib import Path
+import environ
+
+env = environ.Env()
+environ.Env.read_env(env_file='settings/.env.dev')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!t!ya%9xl^+a-3epigsys$(%8r%!uybvn&c6l%-nfdj&xjm1vl'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -40,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'apps.users',
     'apps.apis',
+    'django_celery_results',
 ]
 
 REST_FRAMEWORK = {
@@ -85,10 +90,10 @@ WSGI_APPLICATION = 'analyzer.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'analyzer',
-        'USER': 'elmtran',
-        'PASSWORD': 'O!LC#!4ZPnJ0Pgo',
-        'HOST': 'elmtran.live',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
         'PORT': '3306',
     }
 }
@@ -136,3 +141,10 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+class RabbitMQConfig:
+    host = env('RABBITMQ_HOST')
+    port = env('RABBITMQ_PORT')
+    user = env('RABBITMQ_USER')
+    password = env('RABBITMQ_PASSWORD')

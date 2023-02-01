@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from celery import shared_task
 from .serializers import TaskCreateUpdateSerializer, ResultSerializer, AttachmentSerializer
 
@@ -5,13 +6,18 @@ from .serializers import TaskCreateUpdateSerializer, ResultSerializer, Attachmen
 
 
 @shared_task
-def add(task_id):
-    task = TaskCreateUpdateSerializer.get_object(task_id)
-    attachment = task.attachment
-    result = ResultSerializer(
-        data={'task': task_id, 'result': attachment.file.read()})
-    result.is_valid(raise_exception=True)
-    result.save()
-    task.status = 'completed'
-    task.save()
-    return result.data
+def add(first_number, second_number):
+    return first_number + second_number
+
+
+# @shared_task
+# def add(task_id):
+#     task = TaskCreateUpdateSerializer.get_object(task_id)
+#     attachment = task.attachment
+#     result = ResultSerializer(
+#         data={'task': task_id, 'result': attachment.file.read()})
+#     result.is_valid(raise_exception=True)
+#     result.save()
+#     task.status = 'completed'
+#     task.save()
+#     return result.data
