@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import get_object_or_404
 
 from rest_framework.permissions import (
@@ -13,7 +14,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 from .pagination import TaskPagination
-from .models import Task, Result, Attachment
+from models.task import Task, Result, Attachment, User
 from .permissions import IsOwnerOrReadOnly
 from .serializers import (
     TaskCreateUpdateSerializer,
@@ -21,11 +22,27 @@ from .serializers import (
     TaskDetailSerializer,
     ResultSerializer,
     AttachmentSerializer,
+    AttachmentUploadSerializer,
+    LoginSerializer,
 )
-from .tasks import add
+from .tasks import TaskCreator
 from .mixins import BaseMixin
 
 # Create your views here.
+
+logger = logging.getLogger(__name__)
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.validated_data
+            return Response({
+                'token': user.auth_token.key,
+            })
 
 
 class TaskCreateView(APIView):
@@ -46,7 +63,6 @@ class TaskCreateView(APIView):
         # Attach attachments to task
         task.attachments.set(attachment_ids)
         # 4. Run task
-        add.delay(task.id, task.first_number, task.second_number)
         return Response(serializer.data, status=201)
 
 
@@ -92,19 +108,25 @@ class AttachmentView(APIView):
 
 class UploadAttachmentView(APIView):
     queryset = Attachment.objects.all()
-    serializer_class = AttachmentSerializer
+    serializer_class = AttachmentUploadSerializer
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            serializer.save(owner=self.request.user)
+            serializer.save(
+                original_filename=request.data['file'].name,
+                owner=self.request.user,
+                format=request.data['file'].name.split('.')[-1]
+            )
         return Response(serializer.data, status=201)
 
 
 class TestView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        add.delay(1, 2)
-        return Response('ok', status=200)
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        print(data)
+        print(request.user)
+        return Response("ok", status=201)

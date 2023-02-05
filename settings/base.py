@@ -42,14 +42,17 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'apps.users',
-    'apps.apis',
+    'rest_framework.authtoken',
     'django_celery_results',
+    'models',
 ]
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAdminUser',
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
     ],
 }
 
@@ -142,9 +145,38 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOOGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'logs/debug.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
 
 class RabbitMQConfig:
     host = env('RABBITMQ_HOST')
     port = env('RABBITMQ_PORT')
     user = env('RABBITMQ_USER')
     password = env('RABBITMQ_PASSWORD')
+
+
+class TestUser:
+    username = env('TEST_USER_USERNAME')
+    password = env('TEST_USER_PASSWORD')
+    token = env('TEST_USER_TOKEN')

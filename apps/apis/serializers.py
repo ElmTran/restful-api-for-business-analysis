@@ -1,8 +1,29 @@
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
-from .models import Task, Result, Attachment
+from models.task import Task, Result, Attachment
+from settings.base import env
 
 User = get_user_model()
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
+
+    def validate(self, data):
+        username = data.get('username', None)
+        password = data.get('password', None)
+
+        if username and password:
+            user = authenticate(username=username, password=password)
+            if user and user.is_active:
+                return user
+            else:
+                raise serializers.ValidationError(
+                    'Unable to login with provided credentials.')
+        else:
+            raise serializers.ValidationError(
+                'Must include "username" and "password"')
 
 
 class TaskCreateUpdateSerializer(serializers.ModelSerializer):
@@ -10,6 +31,8 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'title',
+            'category',
+            'params',
         ]
 
     def validate_title(self, value):
@@ -74,7 +97,29 @@ class AttachmentSerializer(serializers.ModelSerializer):
         model = Attachment
         fields = [
             'id',
-            'task',
+            'uid',
+            'url',
             'file',
+            'format',
+            'size',
             'updated_at',
+            'created_at',
         ]
+
+
+class AttachmentUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attachment
+        fields = [
+            'file',
+        ]
+
+    def validate_file(self, value):
+        if value.size > env.int('FILE_UPLOAD_MAX_MEMORY_SIZE'):
+            raise serializers.ValidationError("The file is too large.")
+
+        file_suffix = value.name.split('.')[-1]
+        if file_suffix not in env.list('FILE_UPLOAD_ALLOWED_SUFFIX'):
+            raise serializers.ValidationError("The file type is not allowed.")
+
+        return value

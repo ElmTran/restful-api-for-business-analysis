@@ -11,13 +11,26 @@ class Task(models.Model):
     SUCCESS = 1, 'Success'
     FAILED = 2, 'Failed'
     STATUS_CHOICES = (PROCESSING, SUCCESS, FAILED,)
+    CATEGORY_CHOICES = (
+        (0, 'TimeSeriesForecasting'),
+        (1, 'Classification'),
+        (2, 'Clustering'),
+        (3, 'SentimentAnalysis'),
+    )
     id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=200)
+    description = models.TextField(null=True, blank=True, default=None)
     owner = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='tasks', default=1)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=PROCESSING
     )
+    category = models.CharField(
+        max_length=20, choices=CATEGORY_CHOICES, default=0
+    )
+    attachment = models.ForeignKey(
+        'Attachment', on_delete=models.CASCADE, null=True, blank=True, default=None)
+    params = models.JSONField(default=dict)
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -64,12 +77,14 @@ class Result(models.Model):
 
 class Attachment(models.Model):
     id = models.AutoField(primary_key=True)
-    task = models.ForeignKey(
-        Task, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='attachments')
+    original_filename = models.CharField(max_length=200)
     owner = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='attachments', default=1
     )
+    format = models.CharField(max_length=20, default='csv')
+    size = property(lambda self: self.file.size)
+    url = property(lambda self: self.file.url)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

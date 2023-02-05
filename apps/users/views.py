@@ -9,7 +9,6 @@ from rest_framework.generics import (
     ListAPIView,
     RetrieveUpdateDestroyAPIView,
 )
-
 from .serializers import UserSerializer
 
 # Create your views here.

@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    LoginView,
     TaskCreateView,
     TaskDetailView,
     TaskListView,
@@ -20,6 +21,7 @@ urlpatterns = [
         "<int:pk>/attachment/",
         AttachmentView.as_view(), name="attachment-detail"
     ),
-    path('test', TestView.as_view(), name='test'),
+    path('test/', TestView.as_view(), name='test'),
     path("upload/", UploadAttachmentView.as_view(), name="upload-attachment"),
+    path("login/", LoginView.as_view(), name="login"),
 ]
