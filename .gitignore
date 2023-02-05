@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# migration
+migrations/
+
+# attachments
+attachments/
