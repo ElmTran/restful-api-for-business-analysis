@@ -1,32 +1,32 @@
+# Standard Library
 import logging
-from django.shortcuts import get_object_or_404
 
+# Third-Party Libraries
+from django.shortcuts import get_object_or_404
+from rest_framework.generics import ListAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import (
+    AllowAny,
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
-    AllowAny,
 )
-
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.generics import (
-    ListAPIView,
-    RetrieveUpdateDestroyAPIView,
-)
+
+# Project Imports
+from models.task import Attachment, Result, Task
+from .mixins import BaseMixin
 from .pagination import TaskPagination
-from models.task import Task, Result, Attachment, User
 from .permissions import IsOwnerOrReadOnly
 from .serializers import (
-    TaskCreateUpdateSerializer,
-    TaskListSerializer,
-    TaskDetailSerializer,
-    ResultSerializer,
     AttachmentSerializer,
     AttachmentUploadSerializer,
     LoginSerializer,
+    ResultSerializer,
+    TaskCreateUpdateSerializer,
+    TaskDetailSerializer,
+    TaskListSerializer,
 )
 from .tasks import TaskCreator
-from .mixins import BaseMixin
 
 # Create your views here.
 
@@ -40,9 +40,11 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.validated_data
-            return Response({
-                'token': user.auth_token.key,
-            })
+            return Response(
+                {
+                    "token": user.auth_token.key,
+                }
+            )
 
 
 class TaskCreateView(APIView):
@@ -51,19 +53,19 @@ class TaskCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        # request.data: {'title': 'test', 'attachment_ids': [1, 2], firts_number: 1, second_number: 2}
-
         # Create a task
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
             task = serializer.save(owner=self.request.user)
 
-        # Get attachment ids
-        attachment_ids = request.data.get('attachment_ids', [])
         # Attach attachments to task
-        task.attachments.set(attachment_ids)
+        attachment_id = request.data.get("attachment_id", None)
+        task.attachment = Attachment.objects.filter(id=attachment_id).first()
         # 4. Run task
-        return Response(serializer.data, status=201)
+        task_uid = TaskCreator.create_task(task).execute.delay()
+        task.uid = task_uid
+        task.save()
+        return Response(task_uid, status=201)
 
 
 class TaskListView(ListAPIView, BaseMixin):
@@ -79,7 +81,7 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def get_object(self):
-        return get_object_or_404(Task, id=self.kwargs['pk'])
+        return get_object_or_404(Task, id=self.kwargs["pk"])
 
 
 class ResultView(APIView):
@@ -88,7 +90,7 @@ class ResultView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, *args, **kwargs):
-        task = get_object_or_404(Task, id=self.kwargs['pk'])
+        task = get_object_or_404(Task, id=self.kwargs["pk"])
         result = get_object_or_404(Result, task=task)
         serializer = self.serializer_class(result)
         return Response(serializer.data, status=200)
@@ -100,7 +102,7 @@ class AttachmentView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, *args, **kwargs):
-        task = get_object_or_404(Task, id=self.kwargs['pk'])
+        task = get_object_or_404(Task, id=self.kwargs["pk"])
         attachments = task.attachments.all()
         serializer = self.serializer_class(attachments, many=True)
         return Response(serializer.data, status=200)
@@ -115,9 +117,9 @@ class UploadAttachmentView(APIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save(
-                original_filename=request.data['file'].name,
+                original_filename=request.data["file"].name,
                 owner=self.request.user,
-                format=request.data['file'].name.split('.')[-1]
+                format=request.data["file"].name.split(".")[-1],
             )
         return Response(serializer.data, status=201)
 

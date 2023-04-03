@@ -1,60 +1,50 @@
+# Third-Party Libraries
 import numpy as np
-from abc import ABC, abstractmethod
-from sklearn.model_selection import train_test_split
+import pandas as pd
+from keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
-from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from statsmodels.tsa.api import ExponentialSmoothing, Holt, SimpleExpSmoothing
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Dropout
+
+from .base import BaseForecaster, BaseForecasterCreator
 
 
-class BaseForecaster(ABC):
+class BaseTimeSeriesForecaster(BaseForecaster):
     def __init__(self, data, params):
-        self.data = data
-        self.params = params
-        self.model = None
-        self.features = params.get('features', None)
-        self.target = params.get('target', None)
-        self.window = params.get('window', 1)
+        super().__init__(data, params)
+        self.window = params.get("window", 1)
+        self.time_format = params.get("time_format", "%Y-%m-%d")
 
     def split_data(self):
-        rate = self.params.get('rate', 0.2)
-        random_state = self.params.get('random_state', 3)
-        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(
-            self.data[self.features],
+        rate = self.params.get("rate", 0.2)
+        random_state = self.params.get("random_state", 3)
+        # convert to datetime
+        self.data[self.features[0]] = pd.to_datetime(
+            self.data[self.features[0]], format=self.time_format
+        )
+        # sort by time
+        self.data = self.data.sort_values(by=self.features[0])
+        self.data["time"] = np.arange(len(self.data))
+        # split data
+        (
+            self.x_train,
+            self.x_test,
+            self.y_train,
+            self.y_test,
+        ) = train_test_split(
+            self.data[["time"]],
             self.data[self.target],
             test_size=rate,
-            random_state=random_state
+            random_state=random_state,
         )
 
-    @abstractmethod
-    def fit(self):
-        pass
 
-    @abstractmethod
-    def predict(self):
-        pass
-
-    @abstractmethod
-    def evaluate(self):
-        pass
-
-    @abstractmethod
-    def package_results(self):
-        pass
-
-    def forecast(self):
-        self.split_data()
-        self.fit()
-        self.predict()
-        self.evaluate()
-        return self.package_results()
-
-
-class LinearRegressionForecaster(BaseForecaster):
+class LinearRegressionForecaster(BaseTimeSeriesForecaster):
     def __init__(self, data, params):
         super().__init__(data, params)
 
@@ -69,18 +59,14 @@ class LinearRegressionForecaster(BaseForecaster):
         self.score = self.model.score(self.x_test, self.y_test)
 
     def package_results(self):
-        return {
-            'model': self.model,
-            'x_train': self.x_train,
-            'x_test': self.x_test,
-            'y_train': self.y_train,
-            'y_test': self.y_test,
-            'y_pred': self.y_pred,
-            'score': self.score
-        }
+        # todo: package results
+        self.data["pred"] = np.nan
+        self.data.loc[self.x_test.index, "pred"] = self.y_pred
+        self.data.to_csv("attachments/linear_regression.csv", index=False)
+        return {"score": self.score}
 
 
-class MoveAverageForecaster(BaseForecaster):
+class MoveAverageForecaster(BaseTimeSeriesForecaster):
     def __init__(self, data, params):
         super().__init__(data, params)
 
@@ -97,54 +83,63 @@ class MoveAverageForecaster(BaseForecaster):
         self.score = self.data[self.target].corr(self.y_pred)
 
     def package_results(self):
-        return {
-            'y_pred': self.y_pred,
-            'score': self.score
-        }
+        return {"y_pred": self.y_pred, "score": self.score}
 
 
-class LSTMForecaster(BaseForecaster):
+class LSTMForecaster(BaseTimeSeriesForecaster):
     def __init__(self, data, params):
         super().__init__(data, params)
         self.model = Sequential()
         self.scaler = MinMaxScaler(feature_range=(0, 1))
 
     def split_data(self):
-        rate = self.params.get('rate', 0.2)
-        random_state = self.params.get('random_state', 3)
-        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(
+        rate = self.params.get("rate", 0.2)
+        random_state = self.params.get("random_state", 3)
+        (
+            self.x_train,
+            self.x_test,
+            self.y_train,
+            self.y_test,
+        ) = train_test_split(
             self.data[self.features],
             self.data[self.target],
             test_size=rate,
-            random_state=random_state
+            random_state=random_state,
         )
         scaled_data = self.scaler.fit_transform(self.data[self.features])
         self.x_train = self.scaler.fit_transform(self.x_train)
         self.x_test = self.scaler.transform(self.x_test)
-        prev = self.params.get('prev', 1)
+        prev = self.params.get("prev", 1)
         for x in range(prev, len(scaled_data)):
-            self.x_train.append(scaled_data[x - prev:x, 0])
+            self.x_train.append(scaled_data[x - prev : x, 0])
             self.y_train.append(scaled_data[x, 0])
         self.x_train, self.y_train = (
-            np.array(self.x_train), np.array(self.y_train)
+            np.array(self.x_train),
+            np.array(self.y_train),
         )
         self.x_train = np.reshape(
             self.x_train, (self.x_train.shape[0], self.x_train.shape[1], 1)
         )
 
     def fit(self):
-        self.model.add(LSTM(
-            units=50, return_sequences=True, input_shape=(self.x_train.shape[1], 1)
-        ))
-        self.model.add(Dropout(self.params.get('dropout', 0.2)))
+        self.model.add(
+            LSTM(
+                units=50,
+                return_sequences=True,
+                input_shape=(self.x_train.shape[1], 1),
+            )
+        )
+        self.model.add(Dropout(self.params.get("dropout", 0.2)))
         self.model.add(Dense(units=1))
         self.model.compile(
-            optimizer=self.params.get('optimizer', 'adam'),
-            loss=self.params.get('loss', 'mean_squared_error')
+            optimizer=self.params.get("optimizer", "adam"),
+            loss=self.params.get("loss", "mean_squared_error"),
         )
         self.model.fit(
-            self.x_train, self.y_train, epochs=self.params.get('epochs', 1),
-            batch_size=self.params.get('batch_size', 32)
+            self.x_train,
+            self.y_train,
+            epochs=self.params.get("epochs", 1),
+            batch_size=self.params.get("batch_size", 32),
         )
 
     def predict(self):
@@ -165,33 +160,34 @@ class LSTMForecaster(BaseForecaster):
 
     def package_results(self):
         return {
-            'model': self.model,
-            'x_train': self.x_train,
-            'x_test': self.x_test,
-            'y_train': self.y_train,
-            'y_test': self.y_test,
-            'train_pred': self.train_pred,
-            'test_pred': self.test_pred,
-            'train_score': self.train_score,
-            'test_score': self.test_score
+            "model": self.model,
+            "x_train": self.x_train,
+            "x_test": self.x_test,
+            "y_train": self.y_train,
+            "y_test": self.y_test,
+            "train_pred": self.train_pred,
+            "test_pred": self.test_pred,
+            "train_score": self.train_score,
+            "test_score": self.test_score,
         }
 
 
-class SimpleExponentialSmoothingForecaster(BaseForecaster):
+class SimpleExponentialSmoothingForecaster(BaseTimeSeriesForecaster):
     def __init__(self, data, params):
         super().__init__(data, params)
 
     def fit(self):
-        alpha = self.params.get('alpha', 0.2)
-        optimazed = self.params.get('optimazed', False)
+        alpha = self.params.get("alpha", 0.2)
+        optimazed = self.params.get("optimazed", False)
         initialization_method = self.params.get(
-            'initialization_method', 'estimated')
-        self.model = SimpleExpSmoothing(self.y_train, initialization_method=initialization_method).fit(
-            optimized=optimazed, smoothing_level=alpha
+            "initialization_method", "estimated"
         )
+        self.model = SimpleExpSmoothing(
+            self.y_train, initialization_method=initialization_method
+        ).fit(optimized=optimazed, smoothing_level=alpha)
 
     def predict(self):
-        predays = self.params.get('predays', 1)
+        predays = self.params.get("predays", 1)
         self.y_pred = self.model.forecast(predays)
 
     def evaluate(self):
@@ -199,13 +195,13 @@ class SimpleExponentialSmoothingForecaster(BaseForecaster):
 
     def package_results(self):
         return {
-            'model': self.model,
-            'x_train': self.x_train,
-            'x_test': self.x_test,
-            'y_train': self.y_train,
-            'y_test': self.y_test,
-            'y_pred': self.y_pred,
-            'score': self.score
+            "model": self.model,
+            "x_train": self.x_train,
+            "x_test": self.x_test,
+            "y_train": self.y_train,
+            "y_test": self.y_test,
+            "y_pred": self.y_pred,
+            "score": self.score,
         }
 
 
@@ -214,46 +210,47 @@ class HoltForecaster(SimpleExponentialSmoothingForecaster):
         super().__init__(data, params)
 
     def fit(self):
-        alpha = self.params.get('alpha', 0.2)
-        beta = self.params.get('beta', 0.2)
-        optimazed = self.params.get('optimazed', False)
+        alpha = self.params.get("alpha", 0.2)
+        beta = self.params.get("beta", 0.2)
+        optimazed = self.params.get("optimazed", False)
         initialization_method = self.params.get(
-            'initialization_method', 'estimated')
-        self.model = Holt(self.y_train, initialization_method=initialization_method).fit(
-            optimized=optimazed, smoothing_level=alpha, smoothing_slope=beta
+            "initialization_method", "estimated"
         )
+        self.model = Holt(
+            self.y_train, initialization_method=initialization_method
+        ).fit(optimized=optimazed, smoothing_level=alpha, smoothing_slope=beta)
 
 
 class HoltWintersSeasonalForecaster(SimpleExponentialSmoothingForecaster):
-
     def fit(self):
         # add, mul, additive, multiplicative, None
-        add_trend = self.params.get('add_trend', 'add')
-        add_seasonality = self.params.get('add_seasonality', 'add')
+        add_trend = self.params.get("add_trend", "add")
+        add_seasonality = self.params.get("add_seasonality", "add")
         self.model = ExponentialSmoothing(
             self.y_train,
             trend=add_trend,
             seasonal=add_seasonality,
-            seasonal_periods=self.window
+            seasonal_periods=self.window,
         ).fit()
 
 
-class ArimaForcaster(BaseForecaster):
+class ArimaForcaster(BaseTimeSeriesForecaster):
     def __init__(self, data, params):
         super().__init__(data, params)
 
     def fit(self):
-        autoregressive = self.params.get('autoregressive', 1)
-        moving_average = self.params.get('moving_average', 1)
-        differences = self.params.get('differences', 1)
-        self.model = ARIMA(self.y_train, order=(
-            autoregressive, differences, moving_average
-        )).fit()
+        autoregressive = self.params.get("autoregressive", 1)
+        moving_average = self.params.get("moving_average", 1)
+        differences = self.params.get("differences", 1)
+        self.model = ARIMA(
+            self.y_train, order=(autoregressive, differences, moving_average)
+        ).fit()
 
     def predict(self):
-        predays = self.params.get('predays', 1)
+        predays = self.params.get("predays", 1)
         self.train_pred = self.model.predict(
-            start=0, end=len(self.y_train) - 1)
+            start=0, end=len(self.y_train) - 1
+        )
         self.test_pred = self.model.predict(
             start=len(self.y_train), end=len(self.y_train) + predays - 1
         )
@@ -268,15 +265,15 @@ class ArimaForcaster(BaseForecaster):
 
     def package_results(self):
         return {
-            'model': self.model,
-            'x_train': self.x_train,
-            'x_test': self.x_test,
-            'y_train': self.y_train,
-            'y_test': self.y_test,
-            'train_pred': self.train_pred,
-            'test_pred': self.test_pred,
-            'train_score': self.train_score,
-            'test_score': self.test_score
+            "model": self.model,
+            "x_train": self.x_train,
+            "x_test": self.x_test,
+            "y_train": self.y_train,
+            "y_test": self.y_test,
+            "train_pred": self.train_pred,
+            "test_pred": self.test_pred,
+            "train_score": self.train_score,
+            "test_score": self.test_score,
         }
 
 
@@ -285,34 +282,31 @@ class SarimaForcaster(ArimaForcaster):
         super().__init__(data, params)
 
     def fit(self):
-        autoregressive = self.params.get('autoregressive', 1)
-        moving_average = self.params.get('moving_average', 1)
-        differences = self.params.get('differences', 1)
-        seasonal_autoregressive = self.params.get('seasonal_autoregressive', 1)
-        seasonal_moving_average = self.params.get('seasonal_moving_average', 1)
-        seasonal_differences = self.params.get('seasonal_differences', 1)
+        autoregressive = self.params.get("autoregressive", 1)
+        moving_average = self.params.get("moving_average", 1)
+        differences = self.params.get("differences", 1)
+        seasonal_autoregressive = self.params.get("seasonal_autoregressive", 1)
+        seasonal_moving_average = self.params.get("seasonal_moving_average", 1)
+        seasonal_differences = self.params.get("seasonal_differences", 1)
         self.model = SARIMAX(
             self.y_train,
             order=(autoregressive, differences, moving_average),
             seasonal_order=(
-                seasonal_autoregressive, seasonal_differences, seasonal_moving_average, self.window
-            )
+                seasonal_autoregressive,
+                seasonal_differences,
+                seasonal_moving_average,
+                self.window,
+            ),
         ).fit()
 
 
-class ModelCreator:
-    ModelMap = {}
-
-    def __init__(self, type):
-        self.type = type
-
-    def create_model(self, data, params):
-        return self.ModelMap[self.type](self.type, data, params)
-
-    @staticmethod
-    def register_model(model_type):
-        def decorator(model):
-            ModelCreator.ModelMap[model_type] = model
-            return model
-
-        return decorator
+class TimeSeriesForecasterCreator(BaseForecasterCreator):
+    forecaster_classes = {
+        "linear_regression": LinearRegressionForecaster,
+        "move_average": MoveAverageForecaster,
+        "lstm": LSTMForecaster,
+        "simple_exponential_smoothing": SimpleExponentialSmoothingForecaster,
+        "holt": HoltForecaster,
+        "holt_winters_seasonal": HoltWintersSeasonalForecaster,
+        "arima": ArimaForcaster,
+    }

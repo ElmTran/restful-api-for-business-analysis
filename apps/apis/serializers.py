@@ -1,6 +1,9 @@
-from django.contrib.auth import get_user_model, authenticate
+# Third-Party Libraries
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
-from models.task import Task, Result, Attachment
+
+# Project Imports
+from models.task import Attachment, Result, Task
 from settings.base import env
 
 User = get_user_model()
@@ -11,8 +14,8 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
     def validate(self, data):
-        username = data.get('username', None)
-        password = data.get('password', None)
+        username = data.get("username", None)
+        password = data.get("password", None)
 
         if username and password:
             user = authenticate(username=username, password=password)
@@ -20,19 +23,21 @@ class LoginSerializer(serializers.Serializer):
                 return user
             else:
                 raise serializers.ValidationError(
-                    'Unable to login with provided credentials.')
+                    "Unable to login with provided credentials."
+                )
         else:
             raise serializers.ValidationError(
-                'Must include "username" and "password"')
+                'Must include "username" and "password"'
+            )
 
 
 class TaskCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'title',
-            'category',
-            'params',
+            "title",
+            "category",
+            "params",
         ]
 
     def validate_title(self, value):
@@ -41,13 +46,16 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError(
-                "This title has already been used.")
+                "This title has already been used."
+            )
         if len(value) < 3:
             raise serializers.ValidationError(
-                "The title must be at least 3 characters long.")
+                "The title must be at least 3 characters long."
+            )
         if len(value) > 100:
             raise serializers.ValidationError(
-                "The title must be no more than 200 characters long.")
+                "The title must be no more than 200 characters long."
+            )
         return value
 
 
@@ -55,11 +63,11 @@ class TaskListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'id',
-            'title',
-            'owner',
-            'status',
-            'updated_at',
+            "id",
+            "title",
+            "owner",
+            "status",
+            "updated_at",
         ]
 
 
@@ -71,13 +79,13 @@ class TaskDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'id',
-            'title',
-            'owner',
-            'result',
-            'attachments',
-            'status',
-            'updated_at',
+            "id",
+            "title",
+            "owner",
+            "result",
+            "attachments",
+            "status",
+            "updated_at",
         ]
 
 
@@ -85,10 +93,18 @@ class ResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = Result
         fields = [
-            'id',
-            'task',
-            'result',
-            'updated_at',
+            "id",
+            "task",
+            "result",
+            "updated_at",
+        ]
+
+
+class ResultCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Result
+        fields = [
+            "result",
         ]
 
 
@@ -96,14 +112,14 @@ class AttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attachment
         fields = [
-            'id',
-            'uid',
-            'url',
-            'file',
-            'format',
-            'size',
-            'updated_at',
-            'created_at',
+            "id",
+            "uid",
+            "url",
+            "file",
+            "format",
+            "size",
+            "updated_at",
+            "created_at",
         ]
 
 
@@ -111,15 +127,15 @@ class AttachmentUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attachment
         fields = [
-            'file',
+            "file",
         ]
 
     def validate_file(self, value):
-        if value.size > env.int('FILE_UPLOAD_MAX_MEMORY_SIZE'):
+        if value.size > env.int("FILE_UPLOAD_MAX_MEMORY_SIZE"):
             raise serializers.ValidationError("The file is too large.")
 
-        file_suffix = value.name.split('.')[-1]
-        if file_suffix not in env.list('FILE_UPLOAD_ALLOWED_SUFFIX'):
+        file_suffix = value.name.split(".")[-1]
+        if file_suffix not in env.list("FILE_UPLOAD_ALLOWED_SUFFIX"):
             raise serializers.ValidationError("The file type is not allowed.")
 
         return value
