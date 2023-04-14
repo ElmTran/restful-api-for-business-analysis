@@ -11,13 +11,14 @@ from statsmodels.tsa.api import ExponentialSmoothing, Holt, SimpleExpSmoothing
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
-from .base import BaseForecaster, BaseForecasterCreator
+# Project Imports
+from forecasters.base import BaseForecaster, BaseForecasterCreator
 
 
 class BaseTimeSeriesForecaster(BaseForecaster):
     def __init__(self, data, params):
         super().__init__(data, params)
-        self.window = params.get("window", 1)
+        self.window = params.get("window", 3)
         self.time_format = params.get("time_format", "%Y-%m-%d")
 
     def split_data(self):
@@ -95,30 +96,24 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
     def split_data(self):
         rate = self.params.get("rate", 0.2)
         random_state = self.params.get("random_state", 3)
+        self.data[self.features[0]] = pd.to_datetime(
+            self.data[self.features[0]], format=self.time_format
+        )
+        self.data = self.data.sort_values(by=self.features[0])
+        self.data["time"] = np.arange(len(self.data))
+        self.data[self.target] = self.scaler.fit_transform(
+            self.data[[self.target]]
+        )
         (
             self.x_train,
             self.x_test,
             self.y_train,
             self.y_test,
         ) = train_test_split(
-            self.data[self.features],
+            self.data[["time"]],
             self.data[self.target],
             test_size=rate,
             random_state=random_state,
-        )
-        scaled_data = self.scaler.fit_transform(self.data[self.features])
-        self.x_train = self.scaler.fit_transform(self.x_train)
-        self.x_test = self.scaler.transform(self.x_test)
-        prev = self.params.get("prev", 1)
-        for x in range(prev, len(scaled_data)):
-            self.x_train.append(scaled_data[x - prev : x, 0])
-            self.y_train.append(scaled_data[x, 0])
-        self.x_train, self.y_train = (
-            np.array(self.x_train),
-            np.array(self.y_train),
-        )
-        self.x_train = np.reshape(
-            self.x_train, (self.x_train.shape[0], self.x_train.shape[1], 1)
         )
 
     def fit(self):
@@ -145,12 +140,14 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
     def predict(self):
         self.train_pred = self.model.predict(self.x_train)
         self.test_pred = self.model.predict(self.x_test)
-        self.train_pred = self.scaler.inverse_transform(self.train_pred)
-        self.test_pred = self.scaler.inverse_transform(self.test_pred)
+        self.train_pred = self.scaler.inverse_transform(
+            [r[0] for r in self.train_pred]
+        )
+        self.test_pred = self.scaler.inverse_transform(
+            [r[0] for r in self.test_pred]
+        )
 
     def evaluate(self):
-        self.y_train = self.scaler.inverse_transform(self.y_train)
-        self.y_test = self.scaler.inverse_transform(self.y_test)
         self.train_score = np.sqrt(
             mean_squared_error(self.y_train, self.train_pred)
         )
@@ -161,12 +158,6 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
     def package_results(self):
         return {
             "model": self.model,
-            "x_train": self.x_train,
-            "x_test": self.x_test,
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "train_pred": self.train_pred,
-            "test_pred": self.test_pred,
             "train_score": self.train_score,
             "test_score": self.test_score,
         }
@@ -187,7 +178,7 @@ class SimpleExponentialSmoothingForecaster(BaseTimeSeriesForecaster):
         ).fit(optimized=optimazed, smoothing_level=alpha)
 
     def predict(self):
-        predays = self.params.get("predays", 1)
+        predays = self.params.get("predays", 30)
         self.y_pred = self.model.forecast(predays)
 
     def evaluate(self):
@@ -196,11 +187,6 @@ class SimpleExponentialSmoothingForecaster(BaseTimeSeriesForecaster):
     def package_results(self):
         return {
             "model": self.model,
-            "x_train": self.x_train,
-            "x_test": self.x_test,
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "y_pred": self.y_pred,
             "score": self.score,
         }
 

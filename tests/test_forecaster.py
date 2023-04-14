@@ -19,11 +19,10 @@ if __name__ == "__main__":
         "time_format": "%m/%d/%Y",
         "rate": 0.2,
         "random_state": 3,
+        "predays": 32,
     }
 
-    forecaster = TimeSeriesForecasterCreator(
-        "linear_regression", data, params
-    ).create()
+    forecaster = TimeSeriesForecasterCreator("arima", data, params).create()
 
     result = forecaster.forecast()
     print(result)
