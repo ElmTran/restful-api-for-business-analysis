@@ -14,34 +14,29 @@ class BaseClustering(BaseForecaster):
 
     def split_data(self):
         self.train = self.data[self.features]
-        self.test = self.data[self.target]
 
     def fit(self):
         self.model.fit(self.train)
 
     def predict(self):
         self.train_pred = self.model.predict(self.train)
-        self.test_pred = self.model.predict(self.test)
 
     def evaluate(self):
         self.silhouette_score = silhouette_score(self.train, self.train_pred)
 
     def package_results(self):
         lables = self.model.labels_
-        centroids = self.model.cluster_centers_
         # todo: change this to return a dictionary
         return {
             "model": self.model,
             "lables": lables,
-            "centroids": centroids,
-            "test_pred": self.test_pred,
         }
 
 
 class KMeansClustering(BaseClustering):
     def __init__(self, data, params):
         super().__init__(data, params)
-        n_clusters = self.params.get("n_clusters", 8)
+        n_clusters = self.params.get("n_clusters", 5)
         self.model = KMeans(n_clusters=n_clusters)
 
 
@@ -57,7 +52,6 @@ class HierarchicalClustering(BaseClustering):
 
     def predict(self):
         self.train_pred = self.model.fit_predict(self.train)
-        self.test_pred = self.model.fit_predict(self.test)
 
 
 class SpectralClustering(BaseClustering):
@@ -75,24 +69,21 @@ class SpectralClustering(BaseClustering):
 
     def split_data(self):
         self.train = self.scaler.fit_transform(self.data[self.features])
-        self.test = self.scaler.fit_transform(self.data[self.target])
 
     def predict(self):
         self.train_pred = self.model.fit_predict(self.train)
-        self.test_pred = self.model.fit_predict(self.test)
 
 
 class DBSCANClustering(BaseClustering):
     def __init__(self, data, params):
         super().__init__(data, params)
-        eps = self.params.get("eps", 0.5)
-        min_samples = self.params.get("min_samples", 5)
+        eps = self.params.get("eps", 3)
+        min_samples = self.params.get("min_samples", 2)
         metric = self.params.get("metric", "euclidean")
         self.model = DBSCAN(eps=eps, min_samples=min_samples, metric=metric)
 
     def predict(self):
         self.train_pred = self.model.fit_predict(self.train)
-        self.test_pred = self.model.fit_predict(self.test)
 
 
 class GaussianMixtureClustering(BaseClustering):
@@ -106,10 +97,15 @@ class GaussianMixtureClustering(BaseClustering):
 
     def predict(self):
         self.train_pred = self.model.fit_predict(self.train)
-        self.test_pred = self.model.fit_predict(self.test)
+
+    def package_results(self):
+        return {
+            "model": self.model,
+            "lables": self.train_pred,
+        }
 
 
-class ClusteringForcasterCreator(BaseForecasterCreator):
+class ClusteringCreator(BaseForecasterCreator):
     forecaster_classes = {
         "kmeans": KMeansClustering,
         "hierarchical": HierarchicalClustering,

@@ -7,6 +7,44 @@ from django.db import models
 User = get_user_model()
 
 
+class Attachment(models.Model):
+    _id = models.AutoField(primary_key=True)
+    file = models.FileField(upload_to="attachments")
+    original_filename = models.CharField(max_length=200)
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="attachments", default=1
+    )
+    file_format = models.CharField(max_length=20, default="csv")
+    size = property(lambda self: self.file.size)
+    url = property(lambda self: self.file.url)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.file.name
+
+    class Meta:
+        db_table = "attachments"
+        ordering = ["-updated_at"]
+
+
+class Result(models.Model):
+    _id = models.AutoField(primary_key=True)
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    file = models.FileField(
+        upload_to="results/", null=True, blank=True, default=None
+    )
+
+    def __str__(self):
+        return self.result
+
+    class Meta:
+        db_table = "results"
+        ordering = ["-updated_at"]
+
+
 class Task(models.Model):
     PROCESSING = 0, "Processing"
     SUCCESS = 1, "Success"
@@ -34,15 +72,22 @@ class Task(models.Model):
     category = models.CharField(
         max_length=20, choices=CATEGORY_CHOICES, default=0
     )
+    params = models.JSONField(default=dict)
+    uid = models.CharField(max_length=200, null=True, blank=True, default=None)
     attachment = models.ForeignKey(
-        "Attachment",
+        Attachment,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         default=None,
     )
-    params = models.JSONField(default=dict)
-    uid = models.CharField(max_length=200, null=True, blank=True, default=None)
+    result = models.ForeignKey(
+        Result,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        default=None,
+    )
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -52,61 +97,4 @@ class Task(models.Model):
 
     class Meta:
         db_table = "tasks"
-        ordering = ["-updated_at"]
-
-    @property
-    def result(self):
-        instance = self
-        qs = Result.objects.filter(task=instance)
-        if qs.exists():
-            return qs.first().result
-        return None
-
-    @property
-    def attachment(self):
-        instance = self
-        qs = Attachment.objects.filter(task=instance)
-        if qs.exists():
-            return qs.first().attachment
-        return None
-
-
-class Result(models.Model):
-    _id = models.AutoField(primary_key=True)
-    task = models.ForeignKey(
-        Task, on_delete=models.CASCADE, related_name="results"
-    )
-    result = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    file = models.FileField(
-        upload_to="results/", null=True, blank=True, default=None
-    )
-
-    def __str__(self):
-        return self.result
-
-    class Meta:
-        db_table = "results"
-        ordering = ["-updated_at"]
-
-
-class Attachment(models.Model):
-    _id = models.AutoField(primary_key=True)
-    file = models.FileField(upload_to="attachments")
-    original_filename = models.CharField(max_length=200)
-    owner = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="attachments", default=1
-    )
-    file_format = models.CharField(max_length=20, default="csv")
-    size = property(lambda self: self.file.size)
-    url = property(lambda self: self.file.url)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.file.name
-
-    class Meta:
-        db_table = "attachments"
         ordering = ["-updated_at"]

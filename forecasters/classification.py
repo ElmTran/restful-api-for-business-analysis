@@ -1,5 +1,6 @@
 # Third-Party Libraries
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -13,18 +14,28 @@ from .base import BaseForecaster, BaseForecasterCreator
 
 class BaseClassifier(BaseForecaster):
     def __init__(self, data, params):
+        self.excludes = params.get("excludes", [])
+        self.excludes.append(params.get("target", None))
+        self.max_features = params.get("max_features", None)
+        if self.max_features:
+            data = data.sample(self.max_features)
         super().__init__(data, params)
 
     def split_data(self):
         rate = self.params.get("rate", 0.2)
         random_state = self.params.get("random_state", 42)
+        self.dummies = self.params.get("dummies", None)
+        if self.dummies:
+            self.data = pd.get_dummies(
+                self.data, columns=self.dummies, drop_first=True
+            )
         (
             self.x_train,
             self.x_test,
             self.y_train,
             self.y_test,
         ) = train_test_split(
-            self.data[self.features],
+            self.data.drop(self.excludes, axis=1),
             self.data[self.target],
             test_size=rate,
             random_state=random_state,
@@ -60,7 +71,11 @@ class BaseClassifier(BaseForecaster):
 class DecisionTreeClassifier(BaseClassifier):
     def __init__(self, data, params):
         super().__init__(data, params)
-        self.model = DecisionTree()
+        max_depth = self.params.get("max_depth", 3)
+        min_samples_split = self.params.get("min_samples_split", 10)
+        self.model = DecisionTree(
+            max_depth=max_depth, min_samples_split=min_samples_split
+        )
 
 
 class NaiveBayesClassifier(BaseClassifier):
@@ -95,7 +110,7 @@ class RandomForestClassifier(BaseClassifier):
             predictions.append(tree.predict(self.x_test))
         self.y_pred = np.mean(predictions, axis=0)
 
-    def accuracy(self):
+    def evaluate(self):
         self.test_accuracy = accuracy_score(self.y_test, self.y_pred) * 100
 
     def package_results(self):
@@ -120,7 +135,7 @@ class KNNClassifier(BaseClassifier):
 class SVMClassifier(BaseClassifier):
     def __init__(self, data, params):
         super().__init__(data, params)
-        kernel = self.params.get("kernel", "rbf")
+        kernel = self.params.get("kernel", "linear")
         C_value = self.params.get("C_value", 1.0)
         self.model = SVC(kernel=kernel, C=C_value)
 
@@ -131,12 +146,12 @@ class LogisticRegressionClassifier(BaseClassifier):
         self.model = LogisticRegression()
 
 
-class ClassificationForecasterCreator(BaseForecasterCreator):
+class ClassifierCreator(BaseForecasterCreator):
     forecaster_classes = {
         "decision_tree": DecisionTreeClassifier,
         "naive_bayes": NaiveBayesClassifier,
         "random_forest": RandomForestClassifier,
         "knn": KNNClassifier,
         "svm": SVMClassifier,
-        "logistic_regression": LogisticRegressionClassifier,
+        "log_regression": LogisticRegressionClassifier,
     }

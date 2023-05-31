@@ -26,7 +26,7 @@ from .serializers import (
     TaskDetailSerializer,
     TaskListSerializer,
 )
-from .tasks import TaskCreator
+from .tasks import execute
 
 # Create your views here.
 
@@ -55,14 +55,18 @@ class TaskCreateView(APIView):
     def post(self, request, *args, **kwargs):
         # Create a task
         serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            task = serializer.save(owner=self.request.user)
-
-        # Attach attachments to task
         attachment_id = request.data.get("attachment_id", None)
-        task.attachment = Attachment.objects.filter(id=attachment_id).first()
+        if attachment_id is None:
+            return Response(
+                {"error": "Attachment ID is required."}, status=400
+            )
+        if serializer.is_valid(raise_exception=True):
+            task = serializer.save(
+                owner=self.request.user,
+                attachment=get_object_or_404(Attachment, _id=attachment_id),
+            )
         # 4. Run task
-        task_uid = TaskCreator.create_task(task).execute.delay()
+        task_uid = execute.delay(task._id).id
         task.uid = task_uid
         task.save()
         return Response(task_uid, status=201)
@@ -114,12 +118,13 @@ class UploadAttachmentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        logger.info(request.data)
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save(
                 original_filename=request.data["file"].name,
                 owner=self.request.user,
-                format=request.data["file"].name.split(".")[-1],
+                file_format=request.data["file"].name.split(".")[-1],
             )
         return Response(serializer.data, status=201)
 

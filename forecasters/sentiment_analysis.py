@@ -1,62 +1,83 @@
 # Third-Party Libraries
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import MultinomialNB
+import nltk
+from langdetect import detect
+from nltk.corpus import stopwords
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-from .base import BaseForecaster, BaseForecasterCreator
+from .base import BaseClassifier, BaseForecasterCreator
 
 
-class SentimentAnalysisForecaster(BaseForecaster):
-    def __init__(self):
-        super().__init__()
-        self.vectorizer = CountVectorizer()
-        self.model = MultinomialNB()
+class SentimentClassifier(BaseClassifier):
+    def __init__(self, data, params):
+        max_features = params.get("max_features", None)
+        if max_features:
+            data = data.sample(self.max_features)
+        super().__init__(data, params)
+        self.model = SentimentIntensityAnalyzer()
 
-    def split_data(self):
-        rate = self.params.get("rate", 0.2)
-        ramdom_state = self.params.get("random_state", 0)
-        (
-            self.x_train,
-            self.x_test,
-            self.y_train,
-            self.y_test,
-        ) = train_test_split(
-            self.data[self.features],
-            self.data[self.target],
-            test_size=rate,
-            random_state=ramdom_state,
+    def preprocess(self):
+        pass
+
+    def process(self):
+        # drop no-english comments
+        for i, row in self.data.iterrows():
+            try:
+                if detect(row["comments"]) != "en":
+                    self.data.drop(i, inplace=True)
+            except Exception:
+                self.data.drop(i, inplace=True)
+
+        sentiments = (
+            self.data[self.target]
+            .apply(
+                lambda comment: 1
+                if self.model.polarity_scores(comment)["compound"] >= 0
+                else 0
+            )
+            .tolist()
         )
+        self.data["sentiment"] = sentiments
 
-    def fit(self):
-        self.x_train = self.vectorizer.fit_transform(self.x_train)
-        self.model.fit(self.x_train, self.y_train)
-
-    def predict(self):
-        self.x_test = self.vectorizer.transform(self.x_test)
-        self.y_pred = self.model.predict(self.x_test)
-
-    def evaluate(self):
-        self.accuracy = accuracy_score(self.y_test, self.y_pred)
-
-    def package_results(self) -> dict:
-        return {
-            "model": self.model,
-            "x_train": self.x_train,
-            "x_test": self.x_test,
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "y_pred": self.y_pred,
-            "accuracy": self.accuracy,
-        }
+    def package_results(self):
+        return self.data
 
 
-# todo: add more forecasters
-# NRC
-# bing
+class SentimentSplitter(BaseClassifier):
+    def __init__(self, data, params):
+        super().__init__(data, params)
+        self.model = SentimentIntensityAnalyzer()
+        self.customer_stop_words = params.get("customer_stop_words", None)
+        self.stop_words = set(stopwords.words("english"))
+        self.words = None
+
+    def preprocess(self):
+        words = [word.lower() for word in nltk.word_tokenize(self.data)]
+        words = [
+            word
+            for word in words
+            if word not in self.stop_words and word.isalpha() and len(word) > 2
+        ]
+        if self.customer_stop_words:
+            words = [
+                word for word in words if word not in self.customer_stop_words
+            ]
+        self.words = words
+
+    def process(self):
+        self.preprocess()
+        self.result = {}
+        for word in self.words:
+            if self.model.polarity_scores(word)["compound"] >= 0:
+                self.result[word] = 1
+            else:
+                self.result[word] = 0
+
+    def package_results(self):
+        return self.result
 
 
-class SentimentAnalysisForecasterCreator(BaseForecasterCreator):
+class SentimentAnalyzerCreator(BaseForecasterCreator):
     forecaster_classes = {
-        "sentiment_analysis": SentimentAnalysisForecaster,
+        "file": SentimentClassifier,
+        "text": SentimentSplitter,
     }

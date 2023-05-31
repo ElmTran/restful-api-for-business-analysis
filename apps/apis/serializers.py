@@ -36,6 +36,7 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             "title",
+            "description",
             "category",
             "params",
         ]
@@ -105,6 +106,7 @@ class ResultCreateUpdateSerializer(serializers.ModelSerializer):
         model = Result
         fields = [
             "result",
+            "file",
         ]
 
 
@@ -112,11 +114,10 @@ class AttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attachment
         fields = [
-            "id",
-            "uid",
+            "_id",
             "url",
             "file",
-            "format",
+            "file_format",
             "size",
             "updated_at",
             "created_at",

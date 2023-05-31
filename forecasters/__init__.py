@@ -1,11 +1,11 @@
-from .classification import ClassificationForecasterCreator
-from .clustering import ClusteringForcasterCreator
-from .sentiment_analysis import SentimentAnalysisForecasterCreator
+from .classification import ClassifierCreator
+from .clustering import ClusteringCreator
+from .sentiment_analysis import SentimentAnalyzerCreator
 from .time_series import TimeSeriesForecasterCreator
 
 __all__ = [
     "TimeSeriesForecasterCreator",
-    "ClassificationForecasterCreator",
-    "ClusteringForcasterCreator",
-    "SentimentAnalysisForecasterCreator",
+    "ClassifierCreator",
+    "ClusteringCreator",
+    "SentimentAnalyzerCreator",
 ]

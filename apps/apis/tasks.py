@@ -1,12 +1,11 @@
 # Standard Library
-import json
 
 # Third-Party Libraries
 import pandas as pd
 from celery import shared_task
-from serializers import ResultCreateUpdateSerializer
 
 # Project Imports
+from apps.apis.serializers import ResultCreateUpdateSerializer
 from forecasters import TimeSeriesForecasterCreator
 from models.task import Task
 
@@ -14,31 +13,15 @@ from models.task import Task
 class TaskObj:
     def __init__(self, task):
         self.file_path = task.attachment.file.path
-        self.file_format = task.attachment.format
+        self.file_format = task.attachment.file_format
         if self.file_format == "csv":
             self.data = pd.read_csv(self.file_path)
         elif self.file_format == "xlsx":
             self.data = pd.read_excel(self.file_path)
         else:
             raise Exception("File format not supported")
-        self.params = json.loads(task.params)
+        self.params = task.params
         self.forecaster = None
-
-    @shared_task
-    def execute(self):
-        # run forecaster
-        result = self.forecaster.forecast()
-        # save result to db
-        serializer = ResultCreateUpdateSerializer(data=result)
-        if serializer.is_valid():
-            serializer.save()
-            task = Task.objects.get(id=self.task.id)
-            task.result = serializer.data
-            task.status = Task.STATUS_CHOICES[1][0]
-            task.save()
-        else:
-            raise Exception(serializer.errors)
-        # sync task no return value
 
     def get_result(self):
         pass
@@ -68,15 +51,34 @@ class SentimentAnalysis(TaskObj):
 
 
 class TaskCreator:
+    task_dict = {
+        0: TimeSeriesForecasting,
+        1: Classification,
+        2: Clustering,
+        3: SentimentAnalysis,
+    }
+
     @staticmethod
     def create_task(task):
-        if task.category == "TimeSeriesForecasting":
-            return TimeSeriesForecasting(task)
-        elif task.category == "Classification":
-            return Classification(task)
-        elif task.category == "Clustering":
-            return Clustering(task)
-        elif task.category == "SentimentAnalysis":
-            return SentimentAnalysis(task)
+        task_obj = TaskCreator.task_dict.get(task.category)
+        if task_obj:
+            return task_obj(task)
         else:
-            raise Exception("unknown task category")
+            raise Exception("Task category not supported")
+
+
+@shared_task
+def execute(task_id):
+    task = Task.objects.get(_id=task_id)
+    task_obj = TaskCreator.create_task(task)
+    result = task_obj.forecaster.forecast()
+    data = {"result": result}
+    serializer = ResultCreateUpdateSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save()
+        task = Task.objects.get(_id=task._id)
+        task.result = serializer.instance
+        task.status = Task.STATUS_CHOICES[1][0]
+        task.save()
+    else:
+        raise Exception(serializer.errors)

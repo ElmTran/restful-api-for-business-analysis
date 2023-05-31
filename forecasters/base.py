@@ -47,3 +47,28 @@ class BaseForecasterCreator(ABC):
 
     def create(self):
         return self.forecaster_classes[self.method](self.data, self.params)
+
+
+class BaseClassifier(ABC):
+    def __init__(self, data, params):
+        self.data = data
+        self.params = params
+        self.model = None
+        self.target = params.get("target", None)
+
+    @abstractmethod
+    def preprocess(self):
+        pass
+
+    @abstractmethod
+    def process(self):
+        pass
+
+    @abstractmethod
+    def package_results(self):
+        pass
+
+    def classify(self):
+        self.preprocess()
+        self.process()
+        return self.package_results()
