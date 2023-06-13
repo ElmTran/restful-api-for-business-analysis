@@ -1,12 +1,15 @@
-# Standard Library
-
 # Third-Party Libraries
 import pandas as pd
 from celery import shared_task
 
 # Project Imports
 from apps.apis.serializers import ResultCreateUpdateSerializer
-from forecasters import TimeSeriesForecasterCreator
+from forecasters import (
+    ClassifierCreator,
+    ClusteringCreator,
+    SentimentAnalyzerCreator,
+    TimeSeriesForecasterCreator,
+)
 from models.task import Task
 
 
@@ -38,16 +41,27 @@ class TimeSeriesForecasting(TaskObj):
 class Classification(TaskObj):
     def __init__(self, data):
         super().__init__(data)
+        self.forecaster = ClassifierCreator(
+            self.params["method"], self.data, self.params
+        ).create()
 
 
 class Clustering(TaskObj):
     def __init__(self, data):
         super().__init__(data)
+        self.forecaster = ClusteringCreator(
+            self.params["method"], self.data, self.params
+        ).create()
 
 
 class SentimentAnalysis(TaskObj):
     def __init__(self, data):
         super().__init__(data)
+        if self.params["method"] == "text":
+            self.data = self.params["text"]
+        self.forecaster = SentimentAnalyzerCreator(
+            self.params["method"], self.data, self.params
+        ).create()
 
 
 class TaskCreator:

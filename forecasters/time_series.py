@@ -251,13 +251,6 @@ class ArimaForcaster(BaseTimeSeriesForecaster):
 
     def package_results(self):
         return {
-            "model": self.model,
-            "x_train": self.x_train,
-            "x_test": self.x_test,
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "train_pred": self.train_pred,
-            "test_pred": self.test_pred,
             "train_score": self.train_score,
             "test_score": self.test_score,
         }

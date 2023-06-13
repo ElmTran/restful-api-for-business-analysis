@@ -5,7 +5,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient, APITestCase
 
 # Project Imports
-from forecasters import ClusteringCreator, TimeSeriesForecasterCreator
+from forecasters import (
+    ClassifierCreator,
+    ClusteringCreator,
+    SentimentAnalyzerCreator,
+    TimeSeriesForecasterCreator,
+)
 from models.task import Attachment
 from settings.base import TestUser
 
@@ -38,12 +43,26 @@ class TestAPIView(APITestCase):
         ).exists()
 
 
-class TestModels:
-    pass
-
-
-class TestForecasting:
+@pytest.mark.django_db
+class TestTask:
     def setup_class(self):
+        self.client = APIClient()
+        self.client.defaults["HTTP_AUTHORIZATION"] = f"Token {TestUser.token}"
+
+    def test_task(self):
+        pass
+
+    def test_task_by_api(self):
+        response = self.client.post(
+            "/api/v1/create/", data=self.payload, format="json"
+        )
+        assert response.status_code == 201
+        assert response.data["status"] == "PENDING"
+
+
+class TestForecasting(TestTask):
+    def setup_class(self):
+        super().setup_class(self)
         self.data = pd.read_csv("attachments/time_series_test.csv")
         self.params = {
             "method": "arima",
@@ -57,7 +76,7 @@ class TestForecasting:
         self.payload = {
             "attachment_id": 1,
             "title": "Test Task",
-            "category": "TimeSeriesForecasting",
+            "category": 0,
             "params": self.params,
         }
 
@@ -69,30 +88,51 @@ class TestForecasting:
         assert result
 
     def test_time_series_forecaster_by_api(self):
-        self.client = APIClient()
-        response = self.client.post(
-            "/api/v1/create", data=self.payload, format="json"
-        )
-        assert response.status_code == 201
-        assert response.data["status"] == "PENDING"
+        super().test_task_by_api()
 
 
-class TestClassification:
+class TestClassification(TestTask):
     def setup_class(self):
-        pass
+        super().setup_class(self)
+        self.data = pd.read_csv("attachments/classification_test.csv")
+        self.params = {
+            "excludes": [],
+            "dummies": [
+                "abtest",
+                "vehicleType",
+                "gearbox",
+                "fuelType",
+                "brand",
+                "notRepairedDamage",
+            ],
+            "target": "good_sale",
+            "max_features": 100,
+            "method": "log_regression",
+        }
+        self.payload = {
+            "attachment_id": 2,
+            "title": "Test Classification",
+            "category": 1,
+            "params": self.params,
+        }
 
     def test_classification(self):
-        pass
+        forecaster = ClassifierCreator(
+            "log_regression", self.data, self.params
+        ).create()
+        result = forecaster.forecast()
+        assert result
 
     def test_classification_by_api(self):
-        pass
+        super().test_task_by_api()
 
 
-class TestClustering:
+class TestClustering(TestTask):
     def setup_class(self):
+        super().setup_class(self)
         self.data = pd.read_csv("attachments/clustering_test.csv")
         self.params = {
-            "method": "gaussian_mixture",
+            "method": "kmeans",
             "features": [
                 "Balance",
                 "Qual_miles",
@@ -109,6 +149,12 @@ class TestClustering:
             "n_clusters": 3,
             "random_state": 0,
         }
+        self.payload = {
+            "attachment_id": 3,
+            "title": "Test Clustering",
+            "category": 2,
+            "params": self.params,
+        }
 
     def test_clustering(self):
         forecaster = ClusteringCreator(
@@ -118,15 +164,34 @@ class TestClustering:
         assert result
 
     def test_clustering_by_api(self):
-        pass
+        super().test_task_by_api()
 
 
-class TestSentimentAnalysis:
+class TestSentimentAnalysis(TestTask):
     def setup_class(self):
-        pass
+        super().setup_class(self)
+        self.data = pd.read_csv("attachments/sentiment_test.csv")
+        self.params = {
+            "method": "file",
+            "target": "comments",
+            "max_features": 100,
+            "text": "I love this product. It is so good. I hate this product. It is so bad.",
+        }
+        self.payload = {
+            "attachment_id": 4,
+            "title": "Test Sentiment Analysis",
+            "category": 3,
+            "params": self.params,
+        }
 
     def test_sentiment_analysis(self):
-        pass
+        if self.params["method"] == "text":
+            self.data = self.params["text"]
+        forecaster = SentimentAnalyzerCreator(
+            self.params["method"], self.data, self.params
+        ).create()
+        result = forecaster.forecast()
+        assert result
 
     def test_sentiment_analysis_by_api(self):
-        pass
+        super().test_task_by_api()

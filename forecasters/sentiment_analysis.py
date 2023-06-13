@@ -11,7 +11,7 @@ class SentimentClassifier(BaseClassifier):
     def __init__(self, data, params):
         max_features = params.get("max_features", None)
         if max_features:
-            data = data.sample(self.max_features)
+            data = data.sample(max_features)
         super().__init__(data, params)
         self.model = SentimentIntensityAnalyzer()
 
@@ -39,7 +39,8 @@ class SentimentClassifier(BaseClassifier):
         self.data["sentiment"] = sentiments
 
     def package_results(self):
-        return self.data
+        # todo: save data
+        return {"msg": "success"}
 
 
 class SentimentSplitter(BaseClassifier):

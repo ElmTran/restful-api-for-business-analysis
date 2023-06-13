@@ -69,9 +69,7 @@ class Task(models.Model):
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=PROCESSING
     )
-    category = models.CharField(
-        max_length=20, choices=CATEGORY_CHOICES, default=0
-    )
+    category = models.IntegerField(choices=CATEGORY_CHOICES, default=0)
     params = models.JSONField(default=dict)
     uid = models.CharField(max_length=200, null=True, blank=True, default=None)
     attachment = models.ForeignKey(

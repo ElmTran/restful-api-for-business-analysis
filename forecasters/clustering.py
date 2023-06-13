@@ -26,10 +26,9 @@ class BaseClustering(BaseForecaster):
 
     def package_results(self):
         lables = self.model.labels_
-        # todo: change this to return a dictionary
+        self.data["cluster"] = lables
         return {
-            "model": self.model,
-            "lables": lables,
+            "file": "test",
         }
 
 
@@ -100,8 +99,7 @@ class GaussianMixtureClustering(BaseClustering):
 
     def package_results(self):
         return {
-            "model": self.model,
-            "lables": self.train_pred,
+            "file": "test",
         }
 
 

@@ -55,14 +55,8 @@ class BaseClassifier(BaseForecaster):
         self.test_accuracy = accuracy_score(self.y_test, self.y_pred) * 100
 
     def package_results(self):
+        # todo save data
         return {
-            "model": self.model,
-            "x_train": self.x_train,
-            "x_test": self.x_test,
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "train_pred": self.train_pred,
-            "y_pred": self.y_pred,
             "train_accuracy": self.train_accuracy,
             "test_accuracy": self.test_accuracy,
         }

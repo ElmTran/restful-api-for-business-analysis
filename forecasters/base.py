@@ -68,7 +68,7 @@ class BaseClassifier(ABC):
     def package_results(self):
         pass
 
-    def classify(self):
+    def forecast(self):
         self.preprocess()
         self.process()
         return self.package_results()
