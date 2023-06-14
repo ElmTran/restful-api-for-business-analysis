@@ -136,3 +136,6 @@ migrations/
 
 # attachments
 attachments/
+
+# csv
+result_*.csv
