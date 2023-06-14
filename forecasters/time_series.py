@@ -1,3 +1,6 @@
+# Standard Library
+import os
+
 # Third-Party Libraries
 import numpy as np
 import pandas as pd
@@ -13,6 +16,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 # Project Imports
 from forecasters.base import BaseForecaster, BaseForecasterCreator
+from models.task import Attachment
 
 
 class BaseTimeSeriesForecaster(BaseForecaster):
@@ -23,7 +27,7 @@ class BaseTimeSeriesForecaster(BaseForecaster):
 
     def split_data(self):
         rate = self.params.get("rate", 0.2)
-        random_state = self.params.get("random_state", 3)
+        random_state = self.params.get("random_state", None)
         # convert to datetime
         self.data[self.features[0]] = pd.to_datetime(
             self.data[self.features[0]], format=self.time_format
@@ -42,6 +46,7 @@ class BaseTimeSeriesForecaster(BaseForecaster):
             self.data[self.target],
             test_size=rate,
             random_state=random_state,
+            shuffle=False,
         )
 
 
@@ -55,16 +60,39 @@ class LinearRegressionForecaster(BaseTimeSeriesForecaster):
 
     def predict(self):
         self.y_pred = self.model.predict(self.x_test)
+        self.data["pred"] = np.nan
+        self.data.loc[self.x_test.index, "pred"] = self.y_pred
+
+        # predict future
+        predays = self.params["predays"]  # number of features
+        last_time = self.data["time"].iloc[-1]
+        future_time = np.arange(last_time + 1, last_time + predays + 1)
+        future_pred = self.model.predict(future_time.reshape(-1, 1))
+        # add future time to data
+        self.data = self.data.append(
+            pd.DataFrame(
+                {
+                    "time": future_time,
+                    "pred": future_pred,
+                }
+            )
+        )
 
     def evaluate(self):
         self.score = self.model.score(self.x_test, self.y_test)
 
     def package_results(self):
-        # todo: package results
-        self.data["pred"] = np.nan
-        self.data.loc[self.x_test.index, "pred"] = self.y_pred
-        self.data.to_csv("attachments/linear_regression.csv", index=False)
-        return {"score": self.score}
+        # save tmp file and create attachment
+        tmp_file = f"result_{self.params['task_id']}.csv"
+        self.data.to_csv(tmp_file, index=False)
+        attachment = Attachment.create(tmp_file)
+        # remove tmp file
+        os.remove(tmp_file)
+        return {
+            "model": "LinearRegression",
+            "attachment_id": attachment._id,
+            "score": self.score,
+        }
 
 
 class MoveAverageForecaster(BaseTimeSeriesForecaster):
