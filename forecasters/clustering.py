@@ -25,6 +25,7 @@ class BaseClustering(BaseForecaster):
         self.silhouette_score = silhouette_score(self.train, self.train_pred)
 
     def package_results(self):
+        # todo save data
         lables = self.model.labels_
         self.data["cluster"] = lables
         return {

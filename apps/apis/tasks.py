@@ -14,7 +14,7 @@ from models.task import Task
 
 
 class TaskObj:
-    def __init__(self, task):
+    def __init__(self, task):  # sourcery skip: raise-specific-error
         self.file_path = task.attachment.file.path
         self.file_format = task.attachment.file_format
         if self.file_format == "csv":
@@ -24,6 +24,7 @@ class TaskObj:
         else:
             raise Exception("File format not supported")
         self.params = task.params
+        self.params["task_id"] = task._id
         self.forecaster = None
 
     def get_result(self):
@@ -74,8 +75,7 @@ class TaskCreator:
 
     @staticmethod
     def create_task(task):
-        task_obj = TaskCreator.task_dict.get(task.category)
-        if task_obj:
+        if task_obj := TaskCreator.task_dict.get(task.category):
             return task_obj(task)
         else:
             raise Exception("Task category not supported")
@@ -88,11 +88,10 @@ def execute(task_id):
     result = task_obj.forecaster.forecast()
     data = {"result": result}
     serializer = ResultCreateUpdateSerializer(data=data)
-    if serializer.is_valid():
-        serializer.save()
-        task = Task.objects.get(_id=task._id)
-        task.result = serializer.instance
-        task.status = Task.STATUS_CHOICES[1][0]
-        task.save()
-    else:
+    if not serializer.is_valid():
         raise Exception(serializer.errors)
+    serializer.save()
+    task = Task.objects.get(_id=task._id)
+    task.result = serializer.instance
+    task.status = Task.STATUS_CHOICES[1][0]
+    task.save()

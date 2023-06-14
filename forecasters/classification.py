@@ -88,7 +88,7 @@ class RandomForestClassifier(BaseClassifier):
         max_depth = self.params.get("max_depth", 2)
         min_samples_split = self.params.get("min_samples_split", 2)
         model_random_state = self.params.get("model_random_state", 0)
-        self.tree = []
+        self.trees = []
         for _ in range(n_estimators):
             tree = DecisionTree(
                 max_depth=max_depth,
@@ -96,12 +96,10 @@ class RandomForestClassifier(BaseClassifier):
                 random_state=model_random_state,
             )
             tree.fit(self.x_train, self.y_train)
-            self.tree.append(tree)
+            self.trees.append(tree)
 
     def predict(self):
-        predictions = []
-        for tree in self.tree:
-            predictions.append(tree.predict(self.x_test))
+        predictions = [tree.predict(self.x_test) for tree in self.trees]
         self.y_pred = np.mean(predictions, axis=0)
 
     def evaluate(self):
@@ -109,7 +107,7 @@ class RandomForestClassifier(BaseClassifier):
 
     def package_results(self):
         return {
-            "model": self.tree,
+            "model": self.trees,
             "x_train": self.x_train,
             "x_test": self.x_test,
             "y_train": self.y_train,

@@ -65,7 +65,7 @@ class TestForecasting(TestTask):
         super().setup_class(self)
         self.data = pd.read_csv("attachments/time_series_test.csv")
         self.params = {
-            "method": "arima",
+            "method": "linear_regression",
             "features": ["Month"],
             "target": "Ridership",
             "time_format": "%m/%d/%Y",
