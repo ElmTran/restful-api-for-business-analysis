@@ -49,6 +49,15 @@ class BaseTimeSeriesForecaster(BaseForecaster):
             shuffle=False,
         )
 
+    def save_pred(self):
+        # save tmp file and create attachment
+        tmp_file = f"result_{self.params['task_id']}.csv"
+        self.data.to_csv(tmp_file, index=False)
+        attachment = Attachment.create(tmp_file)
+        # remove tmp file
+        os.remove(tmp_file)
+        return attachment._id
+
 
 class LinearRegressionForecaster(BaseTimeSeriesForecaster):
     def __init__(self, data, params):
@@ -82,15 +91,9 @@ class LinearRegressionForecaster(BaseTimeSeriesForecaster):
         self.score = self.model.score(self.x_test, self.y_test)
 
     def package_results(self):
-        # save tmp file and create attachment
-        tmp_file = f"result_{self.params['task_id']}.csv"
-        self.data.to_csv(tmp_file, index=False)
-        attachment = Attachment.create(tmp_file)
-        # remove tmp file
-        os.remove(tmp_file)
         return {
             "model": "LinearRegression",
-            "attachment_id": attachment._id,
+            "attachment_id": self.save_pred(),
             "score": self.score,
         }
 
@@ -106,13 +109,26 @@ class MoveAverageForecaster(BaseTimeSeriesForecaster):
         pass
 
     def predict(self):
-        self.y_pred = self.data[self.target].rolling(window=self.window).mean()
+        self.roll_mean = (
+            self.data[self.target].rolling(window=self.window).mean()
+        )
+        last_roll_mean = self.roll_mean.iloc[-self.window]
+        self.data["pred"] = self.roll_mean
+        predays = self.params["predays"]  # number of features
+        predictions = pd.DataFrame(
+            {"pred": np.repeat(last_roll_mean, predays)}
+        )
+        self.data = self.data.append(predictions)
 
     def evaluate(self):
-        self.score = self.data[self.target].corr(self.y_pred)
+        self.score = self.data[self.target].corr(self.roll_mean)
 
     def package_results(self):
-        return {"y_pred": self.y_pred, "score": self.score}
+        return {
+            "model": "MoveAverage",
+            "attachment_id": self.save_pred(),
+            "score": self.score,
+        }
 
 
 class LSTMForecaster(BaseTimeSeriesForecaster):
@@ -129,7 +145,7 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
         )
         self.data = self.data.sort_values(by=self.features[0])
         self.data["time"] = np.arange(len(self.data))
-        self.data[self.target] = self.scaler.fit_transform(
+        self.data[f"{self.target}_tr"] = self.scaler.fit_transform(
             self.data[[self.target]]
         )
         (
@@ -139,9 +155,10 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
             self.y_test,
         ) = train_test_split(
             self.data[["time"]],
-            self.data[self.target],
+            self.data[f"{self.target}_tr"],
             test_size=rate,
             random_state=random_state,
+            shuffle=False,
         )
 
     def fit(self):
@@ -166,28 +183,31 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
         )
 
     def predict(self):
-        self.train_pred = self.model.predict(self.x_train)
-        self.test_pred = self.model.predict(self.x_test)
-        self.train_pred = self.scaler.inverse_transform(
-            [r[0] for r in self.train_pred]
+        self.y_pred = self.scaler.inverse_transform(
+            [r[0] for r in self.model.predict(self.x_test)]
         )
-        self.test_pred = self.scaler.inverse_transform(
-            [r[0] for r in self.test_pred]
+        self.data["pred"] = np.nan
+        self.data.loc[self.x_test.index, "pred"] = self.y_pred
+        # predict future
+        predays = self.params["predays"]  # number of features
+        future_frame = pd.DataFrame(
+            {"time": np.arange(len(self.data), len(self.data) + predays)}
         )
+        future_pred = self.scaler.inverse_transform(
+            [r[0] for r in self.model.predict(future_frame)]
+        )
+        # add future time to data
+        future_frame["pred"] = future_pred
+        self.data = self.data.append(future_frame)
 
     def evaluate(self):
-        self.train_score = np.sqrt(
-            mean_squared_error(self.y_train, self.train_pred)
-        )
-        self.test_score = np.sqrt(
-            mean_squared_error(self.y_test, self.test_pred)
-        )
+        self.score = np.sqrt(mean_squared_error(self.y_test, self.y_pred))
 
     def package_results(self):
         return {
-            "model": self.model,
-            "train_score": self.train_score,
-            "test_score": self.test_score,
+            "model": "LSTM",
+            "attachment_id": self.save_pred(),
+            "RMSE": self.score,
         }
 
 
@@ -206,15 +226,22 @@ class SimpleExponentialSmoothingForecaster(BaseTimeSeriesForecaster):
         ).fit(optimized=optimazed, smoothing_level=alpha)
 
     def predict(self):
+        self.y_pred = self.model.forecast(len(self.y_test))
+        self.data["pred"] = np.nan
+        self.data.loc[self.y_test.index, "pred"] = self.y_pred
         predays = self.params.get("predays", 30)
-        self.y_pred = self.model.forecast(predays)
+        self.future_pred = self.model.forecast(len(self.y_test) + predays)
+        self.data = self.data.append(
+            pd.DataFrame({"pred": self.future_pred[-predays:]})
+        )
 
     def evaluate(self):
-        self.score = self.y_test.corr(self.y_pred)
+        self.score = np.sqrt(mean_squared_error(self.y_test, self.y_pred))
 
     def package_results(self):
         return {
-            "model": self.model,
+            "model": "SimpleExponentialSmoothing",
+            "attachment_id": self.save_pred(),
             "score": self.score,
         }
 
@@ -261,26 +288,27 @@ class ArimaForcaster(BaseTimeSeriesForecaster):
         ).fit()
 
     def predict(self):
-        predays = self.params.get("predays", 1)
-        self.train_pred = self.model.predict(
-            start=0, end=len(self.y_train) - 1
-        )
+        self.data["pred"] = np.nan
         self.test_pred = self.model.predict(
-            start=len(self.y_train), end=len(self.y_train) + predays - 1
+            start=len(self.y_train),
+            end=len(self.y_train) + len(self.y_test) - 1,
         )
+        self.data["pred"][-len(self.test_pred) :] = self.test_pred
+        predays = self.params.get("predays", 5)
+        future_pred = self.model.predict(
+            start=self.data.index[-1] + 1,
+            end=self.data.index[-1] + predays,
+        )
+        self.data = self.data.append(pd.DataFrame({"pred": future_pred}))
 
     def evaluate(self):
-        self.train_score = np.sqrt(
-            mean_squared_error(self.y_train, self.train_pred)
-        )
-        self.test_score = np.sqrt(
-            mean_squared_error(self.y_test, self.test_pred)
-        )
+        self.score = np.sqrt(mean_squared_error(self.y_test, self.test_pred))
 
     def package_results(self):
         return {
-            "train_score": self.train_score,
-            "test_score": self.test_score,
+            "model": "ARIMA",
+            "attachment_id": self.save_pred(),
+            "RMSE": self.score,
         }
 
 
