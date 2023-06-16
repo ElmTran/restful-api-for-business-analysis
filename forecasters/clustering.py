@@ -5,6 +5,8 @@ from sklearn.metrics import silhouette_score
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 
+# Project Imports
+from models.task import Attachment
 from .base import BaseForecaster, BaseForecasterCreator
 
 
@@ -25,11 +27,16 @@ class BaseClustering(BaseForecaster):
         self.silhouette_score = silhouette_score(self.train, self.train_pred)
 
     def package_results(self):
-        # todo save data
         lables = self.model.labels_
         self.data["cluster"] = lables
+        attachment = Attachment.create(
+            f"result_{self.params['task_id']}.csv",
+            self.data.to_csv(index=False),
+        )
         return {
-            "file": "test",
+            "model": self.model.__class__.__name__,
+            "attachment_id": attachment._id,
+            "success": True,
         }
 
 
@@ -89,7 +96,7 @@ class DBSCANClustering(BaseClustering):
 class GaussianMixtureClustering(BaseClustering):
     def __init__(self, data, params):
         super().__init__(data, params)
-        n_components = self.params.get("n_components", 8)
+        n_components = self.params.get("n_clusters", 8)
         covariance_type = self.params.get("covariance_type", "full")
         self.model = GaussianMixture(
             n_components=n_components, covariance_type=covariance_type
@@ -99,8 +106,15 @@ class GaussianMixtureClustering(BaseClustering):
         self.train_pred = self.model.fit_predict(self.train)
 
     def package_results(self):
+        self.data["cluster"] = self.train_pred
+        attachment = Attachment.create(
+            f"result_{self.params['task_id']}.csv",
+            self.data.to_csv(index=False),
+        )
         return {
-            "file": "test",
+            "model": self.model.__class__.__name__,
+            "attachment_id": attachment._id,
+            "success": True,
         }
 
 

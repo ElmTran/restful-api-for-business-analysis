@@ -1,6 +1,6 @@
 # Third-Party Libraries
 from django.contrib.auth import get_user_model
-from django.core.files import File
+from django.core.files.base import ContentFile
 from django.db import models
 
 # Create your models here.
@@ -25,18 +25,15 @@ class Attachment(models.Model):
         return self.file.name
 
     @classmethod
-    def create(cls, file_path):
-        file_name = file_path.split("/")[-1]
-        with open(file_path, "rb") as f:
-            system_user = User.objects.get(username="worker")
-            django_file = File(f)
-            attachment = cls(
-                file=django_file,
-                original_filename=file_name,
-                owner=system_user,
-            )
-            attachment.save()
-            return attachment
+    def create(cls, file_name, content):
+        file_csv = ContentFile(content)
+        attachment = cls(
+            file=file_csv,
+            original_filename=file_name,
+            owner=User.objects.get(username="worker"),
+        )
+        attachment.save()
+        return attachment
 
     class Meta:
         db_table = "attachments"

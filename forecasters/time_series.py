@@ -1,5 +1,4 @@
 # Standard Library
-import os
 
 # Third-Party Libraries
 import numpy as np
@@ -51,11 +50,10 @@ class BaseTimeSeriesForecaster(BaseForecaster):
 
     def save_pred(self):
         # save tmp file and create attachment
-        tmp_file = f"result_{self.params['task_id']}.csv"
-        self.data.to_csv(tmp_file, index=False)
-        attachment = Attachment.create(tmp_file)
-        # remove tmp file
-        os.remove(tmp_file)
+        attachment = Attachment.create(
+            f"result_{self.params['task_id']}.csv",
+            self.data.to_csv(index=False),
+        )
         return attachment._id
 
 

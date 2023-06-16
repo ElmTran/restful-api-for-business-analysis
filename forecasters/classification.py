@@ -9,6 +9,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier as DecisionTree
 
+# Project Imports
+from models.task import Attachment
 from .base import BaseForecaster, BaseForecasterCreator
 
 
@@ -47,6 +49,9 @@ class BaseClassifier(BaseForecaster):
     def predict(self):
         self.train_pred = self.model.predict(self.x_train)
         self.y_pred = self.model.predict(self.x_test)
+        self.data["prediction"] = np.concatenate(
+            (self.train_pred, self.y_pred), axis=0
+        )
 
     def evaluate(self):
         self.train_accuracy = (
@@ -55,10 +60,16 @@ class BaseClassifier(BaseForecaster):
         self.test_accuracy = accuracy_score(self.y_test, self.y_pred) * 100
 
     def package_results(self):
-        # todo save data
+        attachment = Attachment.create(
+            f"result_{self.params['task_id']}.csv",
+            self.data.to_csv(index=False),
+        )
         return {
+            "model": self.model.__class__.__name__,
             "train_accuracy": self.train_accuracy,
             "test_accuracy": self.test_accuracy,
+            "attachment_id": attachment._id,
+            "success": True,
         }
 
 
@@ -101,19 +112,21 @@ class RandomForestClassifier(BaseClassifier):
     def predict(self):
         predictions = [tree.predict(self.x_test) for tree in self.trees]
         self.y_pred = np.mean(predictions, axis=0)
+        self.data["prediction"] = self.y_pred
 
     def evaluate(self):
         self.test_accuracy = accuracy_score(self.y_test, self.y_pred) * 100
 
     def package_results(self):
+        attachemnt = Attachment.create(
+            f"result_{self.params['task_id']}.csv",
+            self.data.to_csv(index=False),
+        )
         return {
-            "model": self.trees,
-            "x_train": self.x_train,
-            "x_test": self.x_test,
-            "y_train": self.y_train,
-            "y_test": self.y_test,
-            "y_pred": self.y_pred,
+            "model": "RandomForest",
             "test_accuracy": self.test_accuracy,
+            "attachment_id": attachemnt._id,
+            "success": True,
         }
 
 

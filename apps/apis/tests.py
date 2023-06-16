@@ -132,7 +132,7 @@ class TestClustering(TestTask):
         super().setup_class(self)
         self.data = pd.read_csv("attachments/clustering_test.csv")
         self.params = {
-            "method": "kmeans",
+            "method": "gaussian_mixture",
             "features": [
                 "Balance",
                 "Qual_miles",
@@ -170,13 +170,17 @@ class TestClustering(TestTask):
 class TestSentimentAnalysis(TestTask):
     def setup_class(self):
         super().setup_class(self)
-        self.data = pd.read_csv("attachments/sentiment_test.csv")
         self.params = {
             "method": "file",
             "target": "comments",
             "max_features": 100,
             "text": "I love this product. It is so good. I hate this product. It is so bad.",
         }
+        self.data = (
+            pd.read_csv("attachments/sentiment_test.csv")
+            if self.params["method"] == "file"
+            else self.params["text"]
+        )
         self.payload = {
             "attachment_id": 4,
             "title": "Test Sentiment Analysis",
@@ -185,8 +189,6 @@ class TestSentimentAnalysis(TestTask):
         }
 
     def test_sentiment_analysis(self):
-        if self.params["method"] == "text":
-            self.data = self.params["text"]
         forecaster = SentimentAnalyzerCreator(
             self.params["method"], self.data, self.params
         ).create()
