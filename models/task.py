@@ -26,7 +26,7 @@ class Attachment(models.Model):
 
     @classmethod
     def create(cls, file_name, content):
-        file_csv = ContentFile(content)
+        file_csv = ContentFile(content, file_name)
         attachment = cls(
             file=file_csv,
             original_filename=file_name,
@@ -79,7 +79,7 @@ class Task(models.Model):
         User, on_delete=models.CASCADE, related_name="tasks", default=1
     )
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default=PROCESSING
+        max_length=20, choices=STATUS_CHOICES, default=PROCESSING[0]
     )
     category = models.IntegerField(choices=CATEGORY_CHOICES, default=0)
     params = models.JSONField(default=dict)

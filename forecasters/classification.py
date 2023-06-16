@@ -9,8 +9,6 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier as DecisionTree
 
-# Project Imports
-from models.task import Attachment
 from .base import BaseForecaster, BaseForecasterCreator
 
 
@@ -60,16 +58,14 @@ class BaseClassifier(BaseForecaster):
         self.test_accuracy = accuracy_score(self.y_test, self.y_pred) * 100
 
     def package_results(self):
-        attachment = Attachment.create(
-            f"result_{self.params['task_id']}.csv",
-            self.data.to_csv(index=False),
-        )
         return {
-            "model": self.model.__class__.__name__,
-            "train_accuracy": self.train_accuracy,
-            "test_accuracy": self.test_accuracy,
-            "attachment_id": attachment._id,
-            "success": True,
+            "result": {
+                "model": self.model.__class__.__name__,
+                "train_accuracy": self.train_accuracy,
+                "test_accuracy": self.test_accuracy,
+                "success": True,
+            },
+            "file": self.generate_result_file(),
         }
 
 
@@ -118,15 +114,13 @@ class RandomForestClassifier(BaseClassifier):
         self.test_accuracy = accuracy_score(self.y_test, self.y_pred) * 100
 
     def package_results(self):
-        attachemnt = Attachment.create(
-            f"result_{self.params['task_id']}.csv",
-            self.data.to_csv(index=False),
-        )
         return {
-            "model": "RandomForest",
-            "test_accuracy": self.test_accuracy,
-            "attachment_id": attachemnt._id,
-            "success": True,
+            "result": {
+                "model": "RandomForest",
+                "test_accuracy": self.test_accuracy,
+                "success": True,
+            },
+            "file": self.generate_result_file(),
         }
 
 

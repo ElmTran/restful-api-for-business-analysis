@@ -4,8 +4,6 @@ from langdetect import detect
 from nltk.corpus import stopwords
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-# Project Imports
-from models.task import Attachment
 from .base import BaseClassifier, BaseForecasterCreator
 
 
@@ -40,14 +38,9 @@ class SentimentClassifier(BaseClassifier):
         self.data["sentiment"] = sentiments
 
     def package_results(self):
-        attachment = Attachment.create(
-            f"result_{self.params['task_id']}.csv",
-            self.data.to_csv(index=False),
-        )
         return {
-            "model": "vader",
-            "attachment_id": attachment._id,
-            "success": True,
+            "result": {"model": "vader", "success": True},
+            "file": self.generate_result_file(),
         }
 
 
@@ -82,7 +75,7 @@ class SentimentSplitter(BaseClassifier):
                 self.result[word] = 0
 
     def package_results(self):
-        return self.result
+        return {"result": self.result}
 
 
 class SentimentAnalyzerCreator(BaseForecasterCreator):

@@ -1,8 +1,22 @@
 # Standard Library
+import io
 from abc import ABC, abstractmethod
 
+# Third-Party Libraries
+from django.core.files.base import ContentFile
 
-class BaseForecaster(ABC):
+
+class Mixin:
+    def generate_result_file(self):
+        buffer = io.BytesIO()
+        self.data.to_csv(buffer, index=False)
+        buffer.seek(0)
+        return ContentFile(
+            buffer.read(), f"result_{self.params['task_id']}.csv"
+        )
+
+
+class BaseForecaster(ABC, Mixin):
     def __init__(self, data, params):
         self.data = data
         self.params = params
@@ -49,7 +63,7 @@ class BaseForecasterCreator(ABC):
         return self.forecaster_classes[self.method](self.data, self.params)
 
 
-class BaseClassifier(ABC):
+class BaseClassifier(ABC, Mixin):
     def __init__(self, data, params):
         self.data = data
         self.params = params

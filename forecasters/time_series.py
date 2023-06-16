@@ -1,5 +1,3 @@
-# Standard Library
-
 # Third-Party Libraries
 import numpy as np
 import pandas as pd
@@ -15,7 +13,6 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 # Project Imports
 from forecasters.base import BaseForecaster, BaseForecasterCreator
-from models.task import Attachment
 
 
 class BaseTimeSeriesForecaster(BaseForecaster):
@@ -47,14 +44,6 @@ class BaseTimeSeriesForecaster(BaseForecaster):
             random_state=random_state,
             shuffle=False,
         )
-
-    def save_pred(self):
-        # save tmp file and create attachment
-        attachment = Attachment.create(
-            f"result_{self.params['task_id']}.csv",
-            self.data.to_csv(index=False),
-        )
-        return attachment._id
 
 
 class LinearRegressionForecaster(BaseTimeSeriesForecaster):
@@ -90,9 +79,11 @@ class LinearRegressionForecaster(BaseTimeSeriesForecaster):
 
     def package_results(self):
         return {
-            "model": "LinearRegression",
-            "attachment_id": self.save_pred(),
-            "score": self.score,
+            "result": {
+                "model": "LinearRegression",
+                "score": self.score,
+            },
+            "file": self.generate_result_file(),
         }
 
 
@@ -123,9 +114,11 @@ class MoveAverageForecaster(BaseTimeSeriesForecaster):
 
     def package_results(self):
         return {
-            "model": "MoveAverage",
-            "attachment_id": self.save_pred(),
-            "score": self.score,
+            "result": {
+                "model": "MoveAverage",
+                "score": self.score,
+            },
+            "file": self.generate_result_file(),
         }
 
 
@@ -203,9 +196,11 @@ class LSTMForecaster(BaseTimeSeriesForecaster):
 
     def package_results(self):
         return {
-            "model": "LSTM",
-            "attachment_id": self.save_pred(),
-            "RMSE": self.score,
+            "result": {
+                "model": "LSTM",
+                "RMSE": self.score,
+            },
+            "file": self.generate_result_file(),
         }
 
 
@@ -238,9 +233,11 @@ class SimpleExponentialSmoothingForecaster(BaseTimeSeriesForecaster):
 
     def package_results(self):
         return {
-            "model": "SimpleExponentialSmoothing",
-            "attachment_id": self.save_pred(),
-            "score": self.score,
+            "result": {
+                "model": "SimpleExponentialSmoothing",
+                "score": self.score,
+            },
+            "file": self.generate_result_file(),
         }
 
 
@@ -304,9 +301,11 @@ class ArimaForcaster(BaseTimeSeriesForecaster):
 
     def package_results(self):
         return {
-            "model": "ARIMA",
-            "attachment_id": self.save_pred(),
-            "RMSE": self.score,
+            "result": {
+                "model": "ARIMA",
+                "RMSE": self.score,
+            },
+            "file": self.generate_result_file(),
         }
 
 

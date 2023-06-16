@@ -85,9 +85,8 @@ class TaskCreator:
 def execute(task_id):
     task = Task.objects.get(_id=task_id)
     task_obj = TaskCreator.create_task(task)
-    result = task_obj.forecaster.forecast()
-    data = {"result": result}
-    serializer = ResultCreateUpdateSerializer(data=data)
+    ret = task_obj.forecaster.forecast()
+    serializer = ResultCreateUpdateSerializer(data=ret)
     if not serializer.is_valid():
         raise Exception(serializer.errors)
     serializer.save()

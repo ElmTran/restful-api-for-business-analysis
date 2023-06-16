@@ -66,9 +66,7 @@ class TaskCreateView(APIView):
                 attachment=get_object_or_404(Attachment, _id=attachment_id),
             )
         # 4. Run task
-        # task_uid = execute.delay(task._id).id
-        execute(task._id)
-        task_uid = "test"
+        task_uid = execute.delay(task._id).id
         task.uid = task_uid
         task.save()
         return Response({"uid": task_uid, "status": "PENDING"}, status=201)
