@@ -2,6 +2,7 @@
 import logging
 
 # Third-Party Libraries
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import (
@@ -94,10 +95,22 @@ class ResultView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, *args, **kwargs):
-        task = get_object_or_404(Task, id=self.kwargs["pk"])
-        result = get_object_or_404(Result, task=task)
-        serializer = self.serializer_class(result)
+        task = get_object_or_404(Task, uid=self.kwargs["pk"])
+        serializer = self.serializer_class(task.result)
         return Response(serializer.data, status=200)
+
+
+class ResultFileView(APIView):
+    serializer_class = ResultSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get(self, request, *args, **kwargs):
+        task = get_object_or_404(Task, uid=self.kwargs["pk"])
+        result = task.result
+        if result is None:
+            return Response({"error": "Result not found."}, status=404)
+        file = result.file
+        return FileResponse(file, as_attachment=True, filename=file.name)
 
 
 class AttachmentView(APIView):

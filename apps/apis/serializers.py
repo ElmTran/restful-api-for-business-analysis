@@ -94,9 +94,19 @@ class ResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = Result
         fields = [
-            "id",
-            "task",
+            "_id",
             "result",
+            "file",
+            "updated_at",
+        ]
+
+
+class ResultFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Result
+        fields = [
+            "_id",
+            "file",
             "updated_at",
         ]
 
