@@ -1,51 +1,43 @@
-# Use an official Python runtime as a parent image
-FROM python:3.8-alpine AS build
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# Set work directory
-WORKDIR /usr/src/app
-
-# Upgrade pip
-RUN pip install --upgrade pip
-
-# Install dependencies
-COPY ./requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
-
-###################
-# FINAL IMAGE
-###################
-FROM python:3.8-alpine
-
-# Create a group and user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Build Stage
+FROM python:3.8-alpine AS builder
 
 # Set environment varibles
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Set work directory
-WORKDIR /home/appuser
+WORKDIR /usr/src/app
 
 # Install dependencies
-COPY --from=build /usr/src/app/wheels /wheels
-COPY --from=build /usr/src/app/requirements.txt .
-RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && python -m venv /usr/src/app/venv
+
+# Final Stage
+FROM python:3.8-alpine
+
+# Create a non-root user
+RUN adduser -D myuser
+
+# Switch to non-root user
+USER myuser
+
+# Set work directory
+WORKDIR /usr/src/app
+
+# Copy dependencies from builder stage
+COPY --from=builder /usr/src/app/venv /usr/src/app/venv
+COPY --from=builder /usr/src/app .
 
 # Copy project
 COPY . .
 
-# Change the ownership of the application directory to the non-root user
-RUN chown -R appuser:appgroup /home/appuser
-
-# Switch to the non-root user
-USER appuser
-
 # Expose the port server is running on
-EXPOSE 8000
+EXPOSE 8976
+
+# Activate virtual environment
+ENV PATH="/usr/src/app/venv/bin:$PATH"
 
 # Start server
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:8000 analyzer.wsgi && python celery_main.py"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:8976 analyzer.wsgi && python celery_main.py"]
