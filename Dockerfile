@@ -1,5 +1,5 @@
 # Build Stage
-FROM python:3.8-alpine AS builder
+FROM python:3.10-alpine AS builder
 
 # Set environment varibles
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -18,7 +18,7 @@ RUN apk add --no-cache --virtual .build-deps gcc g++ libstdc++ gfortran musl-dev
     && apk del .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev openblas-dev
 
 # Final Stage
-FROM python:3.8-alpine
+FROM python:3.10-alpine
 
 # Create a non-root user
 RUN adduser -D myuser
