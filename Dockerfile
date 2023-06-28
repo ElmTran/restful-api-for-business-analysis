@@ -11,9 +11,10 @@ WORKDIR /usr/src/app
 # Install dependencies
 COPY requirements.txt .
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev libffi-dev openssl-dev\
-    pip install --upgrade pip \
+    && pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
     && python -m venv /usr/src/app/venv
+    && apk del .build-deps gcc musl-dev libffi-dev openssl-dev
 
 # Final Stage
 FROM python:3.8-alpine
