@@ -10,7 +10,8 @@ WORKDIR /usr/src/app
 
 # Install dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip \
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev libffi-dev openssl-dev\
+    pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
     && python -m venv /usr/src/app/venv
 
