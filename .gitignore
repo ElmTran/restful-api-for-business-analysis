@@ -141,3 +141,4 @@ attachments/
 result_*.csv
 results/
 settings/.env.dev
+settings/.env.prod
