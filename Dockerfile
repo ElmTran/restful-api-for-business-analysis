@@ -11,11 +11,11 @@ WORKDIR /usr/src/app
 # Install dependencies
 COPY requirements.txt .
 
-RUN apk add --no-cache --virtual .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev \
+RUN apk add --no-cache --virtual .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev openblas-dev\
     && python -m venv /venv \
     && /venv/bin/pip install --no-cache-dir --upgrade pip \
     && /venv/bin/pip install --no-cache-dir -r requirements.txt \
-    && apk del .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev
+    && apk del .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev openblas-dev
 
 # Final Stage
 FROM python:3.8-alpine
