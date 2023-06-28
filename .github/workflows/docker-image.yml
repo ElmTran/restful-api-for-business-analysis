@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: restful-api-for-business-analysis
 
 on:
   push:
