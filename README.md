@@ -10,10 +10,8 @@ This is a RESTful API for Business Analytics. It is built with Python and Django
 ### Prerequisites
 
 - Python 3.8.10
-- Django 3.2.12 & Django Rest Framework 3.14.0
 - MySQL 5.7.18
 - RabbitMQ 3.12.0
-- Celery 5.2.7
 
 ### Build from source
 
