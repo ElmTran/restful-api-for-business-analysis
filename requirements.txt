@@ -1,5 +1,15 @@
+celery==5.2.7
 Django==3.2.12
 django_environ==0.9.0
 djangorestframework==3.14.0
 environ==1.0
+keras==2.11.0
+langdetect==1.0.9
+nltk==3.8.1
+numpy==1.24.2
+pandas==1.5.3
 PyMySQL==1.0.2
+pytest==7.2.1
+requests==2.27.0
+scikit_learn==1.2.2
+statsmodels==0.13.5
