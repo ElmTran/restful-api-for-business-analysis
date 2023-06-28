@@ -140,3 +140,4 @@ attachments/
 # csv
 result_*.csv
 results/
+settings/.env.dev
