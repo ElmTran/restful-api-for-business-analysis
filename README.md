@@ -104,9 +104,9 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
 
     ```json
     {
-        "username": string,
-        "password": string,
-        "email": string
+        "username": "",   // unique
+        "password": "",   // at least 8 characters
+        "email": "",      // standard email format
     }
     ```
 
@@ -114,8 +114,8 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
 
     ```json
     {
-        "username": string,
-        "password": string
+        "username": "",   // unique
+        "password": "",   // at least 8 characters
     }
     ```
 
@@ -124,7 +124,7 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
     authorization: Token {token}
 
     ```form
-    "file": file
+    "file": file    // the file to be uploaded
     ```
 
 4. Create Task: **POST** /api/v1/create
@@ -132,11 +132,11 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
     authorization: Token {token}
 
     ```json
-    "attachment_id": int,
-    "title": string,
-    "description": string,
-    "category": choice[0, 1, 2, 3],
-    "params": object
+    "attachment_id": 0,    // the id of the uploaded file
+    "title": "",           // the title of the task, unique
+    "description": "",     // the description of the task
+    "category": 0,         // choice[0, 1, 2, 3]
+    "params": {},          // the parameters of the task
     ```
 
 5. Query Result: **GET** /api/v1/result/{task_id}
@@ -153,72 +153,57 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
 
     ```json
     {
-        "method": choice[
-            "linear_regression",
-            "move_average",
-            "lstm",
-            "simple_exponential_smoothing",
-            "holt",
-            "holt_winters_seasonal",
-            "arima"
-        ],                      // the model to be used for forecasting
-        "features": list[string],   // the features to be used for forecasting
-        "target": string,        // the target to be forecasted
-        "max_features": int,    // sample size
-        "time_format": string,   // the format of the time column
-        "rate": float,           // the rate of the test set
-        "random_state": int,     // the random state
-        "predays": int,          // the number of days to be forecasted into the future
+        "method": "",           // the model to be used for forecasting
+        "features": [],         // the features to be used for forecasting, list[string]
+        "target": "",           // the target to be forecasted
+        "max_features": 100,    // sample size
+        "time_format": "",      // the format of the time column
+        "rate": 0.2,            // the rate of the test set
+        "random_state": 0,      // the random state
+        "predays": 0,           // the number of days to be forecasted into the future
     }
+
+    // method: choice["linear_regression", "move_average", "lstm", "simple_exponential_smoothing", "holt", "holt_winters_seasonal", "arima]
     ```
 
 - Classification: 1
 
     ```json
     {
-        "method": choice[
-            "decision_tree",
-            "naive_bayes",
-            "random_forest",
-            "knn",
-            "svm",
-            "log_regression"
-        ],
-        "excludes": list[string],  // the features to be excluded
-        "dummies": list[string],   // the features need to be dummied
-        "target": string,          // the target to be classified
-        "max_features": int,       // sample size
+        "method": "",              // the model to be used for classification
+        "excludes": [],            // the features to be excluded, list[string]
+        "dummies": [],             // the features to be converted to dummies, list[string]
+        "target": "",              // the target to be classified
+        "max_features": 100,       // sample size
     }
+
+    // method: choice[ "decision_tree", "naive_bayes", "random_forest", "knn", "svm", "log_regressio]
+    ```
 
 - Clustering: 2
 
     ```json
     {
-        "method": choice[
-            "kmeans",
-            "hierarchical",
-            "spectral",
-            "dbscan",
-            "gaussian_mixture"
-        ],
-        "features": list[string],  // the features to be used for clustering
-        "n_clusters": int,         // the number of clusters
-        "random_state": int,       // the random state
+        "method": "",            // the model to be used for clustering
+        "features": [],          // the features to be used for clustering
+        "n_clusters": 0,         // the number of clusters
+        "random_state": 0,       // the random state
     }
+
+    // method: choice["kmeans", "hierarchical", "spectral", "dbscan", "gaussian_mixture"]
     ```
 
 - Sentiment analysis: 3
 
     ```json
     {
-        "method": choice[
-            "file",     // analyze the sentiment of a file
-            "text"      // analyze the sentiment of a text
-        ],
-        "target": string,          // the target to be analyzed
-        "max_features": int,       // sample size
-        "text": string,            // the text to be analyzed (if method is text)
+        "method": "",               // the model to be used for sentiment analysis
+        "target": "",               // the target to be analyzed
+        "max_features": 100,        // sample size
+        "text": "",                 // the text to be analyzed (if method is text)
     }
+
+    // method: choice["text", "file"], text: analyze the text, file: analyze the uploaded file
     ```
 
 ### Examples
