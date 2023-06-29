@@ -43,4 +43,4 @@ EXPOSE 8976
 ENV PATH="/usr/src/app/venv/bin:$PATH"
 
 # Start server
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:8976 analyzer.wsgi && python celery_main.py"]
+CMD ["sh", "/usr/src/app/scripts/start.sh"]
