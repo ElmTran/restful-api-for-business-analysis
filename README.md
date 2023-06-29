@@ -177,7 +177,7 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
         "max_features": 100,       // sample size
     }
 
-    // method: choice[ "decision_tree", "naive_bayes", "random_forest", "knn", "svm", "log_regressio]
+    // method: choice[ "decision_tree", "naive_bayes", "random_forest", "knn", "svm", "log_regression]
     ```
 
 - Clustering: 2
