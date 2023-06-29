@@ -2,9 +2,14 @@ name: restful-api-for-business-analysis
 
 on:
   push:
-    branches: [ "master" ]
+    tags:
+      - v*
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - master
+
+env:
+  IMAGE_NAME: analysis-api
 
 jobs:
 
@@ -15,4 +20,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: docker build . --file Dockerfile --tag $IMAGE_NAME
+    - name: Log in to DockerHub
+      run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+    - name: Push image to DockerHub
+      run:
+          IMAGE_ID=${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME
+          VERSION=$(echo ${GITHUB_REF} | sed -e 's,.*/\(.*\),\1,')
+          [ "${VERSION}" == "master" ] && VERSION=latest
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION

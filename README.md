@@ -57,7 +57,7 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
 1. From Docker Hub
 
     ```bash
-    docker pull elmtran/analyzer
+    docker pull elmtran/analysis-api
     ```
 
 2. Or from source
@@ -67,13 +67,13 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
 
     cd restful-api-for-business-analysis
 
-    docker build -t analyzer .
+    docker build -t analysis-api .
     ```
 
 3. Run the server
 
     ```bash
-    docker run -p 8976:8976 -v /path/to/.env.prod:/usr/src/app/settings/.env.prod analyzer -d
+    docker run -p 8976:8976 -v /path/to/.env.prod:/usr/src/app/settings/.env.prod analysis-api -d
     ```
 #### Compose
 
@@ -82,8 +82,8 @@ This is a RESTful API for Business Analytics. It is built with Python, Django, C
     ```yaml
     version: "3.9"
     services:
-    analyzer:
-        image: elmtran/analyzer
+    analysis-api:
+        image: elmtran/analysis-api
         restart: always
         ports:
         - "8976:8976"
