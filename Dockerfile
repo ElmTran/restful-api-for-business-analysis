@@ -1,7 +1,7 @@
-# Build Stage
-FROM python:3.10-alpine AS builder
+# Base Image
+FROM python:3.10-slim
 
-# Set environment varibles
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
@@ -10,28 +10,9 @@ WORKDIR /usr/src/app
 
 # Install dependencies
 COPY requirements.txt .
-
-RUN apk add --no-cache --virtual .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev openblas-dev\
-    && python -m venv /venv \
+RUN python -m venv /venv \
     && /venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /venv/bin/pip install --no-cache-dir -r requirements.txt \
-    && apk del .build-deps gcc g++ libstdc++ gfortran musl-dev libffi-dev openssl-dev openblas-dev
-
-# Final Stage
-FROM python:3.10-alpine
-
-# Create a non-root user
-RUN adduser -D myuser
-
-# Switch to non-root user
-USER myuser
-
-# Set work directory
-WORKDIR /usr/src/app
-
-# Copy dependencies from builder stage
-COPY --from=builder /venv /usr/src/app/venv
-COPY --from=builder /usr/src/app .
+    && /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copy project
 COPY . .
@@ -40,7 +21,7 @@ COPY . .
 EXPOSE 8976
 
 # Activate virtual environment
-ENV PATH="/usr/src/app/venv/bin:$PATH"
+ENV PATH="/venv/bin:$PATH"
 
 # Start server
-CMD ["sh", "/usr/src/app/scripts/start.sh"]
+CMD ["sh", "scripts/start.sh"]
