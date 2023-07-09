@@ -18,10 +18,11 @@ class SentimentClassifier(BaseClassifier):
         pass
 
     def process(self):
+        target = self.params.get("target", None)
         # drop no-english comments
         for i, row in self.data.iterrows():
             try:
-                if detect(row["comments"]) != "en":
+                if detect(row[target]) != "en":
                     self.data.drop(i, inplace=True)
             except Exception:
                 self.data.drop(i, inplace=True)
